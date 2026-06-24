@@ -15,6 +15,8 @@ export interface Solicitud {
   observaciones: string
   archivoUrl: string
   archivoNombre: string
+  archivo2Url: string
+  archivo2Nombre: string
   documentoUrl: string
   documentoNombre: string
   entregaToken: string
@@ -110,6 +112,8 @@ async function inicializar() {
       observaciones TEXT DEFAULT '',
       archivo_url TEXT DEFAULT '',
       archivo_nombre TEXT DEFAULT '',
+      archivo2_url TEXT DEFAULT '',
+      archivo2_nombre TEXT DEFAULT '',
       documento_url TEXT DEFAULT '',
       documento_nombre TEXT DEFAULT '',
       entrega_token TEXT DEFAULT '',
@@ -120,6 +124,8 @@ async function inicializar() {
   // Agregar columnas si ya existe la tabla sin ellas
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo_url TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo_nombre TEXT DEFAULT ''`
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo2_url TEXT DEFAULT ''`
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo2_nombre TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento_url TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento_nombre TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS entrega_token TEXT DEFAULT ''`
@@ -140,6 +146,8 @@ function rowToSolicitud(r: Record<string, unknown>): Solicitud {
     observaciones: r.observaciones as string,
     archivoUrl: (r.archivo_url as string) ?? "",
     archivoNombre: (r.archivo_nombre as string) ?? "",
+    archivo2Url: (r.archivo2_url as string) ?? "",
+    archivo2Nombre: (r.archivo2_nombre as string) ?? "",
     documentoUrl: (r.documento_url as string) ?? "",
     documentoNombre: (r.documento_nombre as string) ?? "",
     entregaToken: (r.entrega_token as string) ?? "",
@@ -155,8 +163,8 @@ export async function crearSolicitud(
   const db = sql()
   const id = crypto.randomUUID()
   const rows = await db`
-    INSERT INTO solicitudes (id, cliente_nombre, cliente_whatsapp, servicio_id, servicio_nombre, nivel, notas, asignado_a, observaciones, archivo_url, archivo_nombre)
-    VALUES (${id}, ${data.clienteNombre}, ${data.clienteWhatsapp}, ${data.servicioId}, ${data.servicioNombre}, ${data.nivel}, ${data.notas}, ${data.asignadoA}, ${data.observaciones}, ${data.archivoUrl}, ${data.archivoNombre})
+    INSERT INTO solicitudes (id, cliente_nombre, cliente_whatsapp, servicio_id, servicio_nombre, nivel, notas, asignado_a, observaciones, archivo_url, archivo_nombre, archivo2_url, archivo2_nombre)
+    VALUES (${id}, ${data.clienteNombre}, ${data.clienteWhatsapp}, ${data.servicioId}, ${data.servicioNombre}, ${data.nivel}, ${data.notas}, ${data.asignadoA}, ${data.observaciones}, ${data.archivoUrl}, ${data.archivoNombre}, ${data.archivo2Url}, ${data.archivo2Nombre})
     RETURNING *
   `
   return rowToSolicitud(rows[0])

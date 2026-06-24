@@ -160,6 +160,7 @@ export default function Operativo() {
                       </div>
                     )}
                     <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+                    <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
                   </div>
                 </div>
                 <button onClick={() => marcarTerminada(s)} disabled={marcando === s.id}

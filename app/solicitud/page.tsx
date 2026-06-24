@@ -6,13 +6,14 @@ import type { ServicioDB } from "@/lib/db"
 
 export default function FormularioCliente() {
   const [form, setForm] = useState({ clienteNombre: "", clienteWhatsapp: "", servicioId: "", notas: "" })
-  const [archivo, setArchivo] = useState<File | null>(null)
+  const [archivos, setArchivos] = useState<(File | null)[]>([null, null])
   const [estado, setEstado] = useState<"idle" | "enviando" | "ok" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [folio, setFolio] = useState<number | null>(null)
   const [linkWA, setLinkWA] = useState<string | null>(null)
   const [catalogo, setCatalogo] = useState<ServicioDB[]>([])
-  const inputArchivo = useRef<HTMLInputElement>(null)
+  const inputArchivo1 = useRef<HTMLInputElement>(null)
+  const inputArchivo2 = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch("/api/servicios?activos=1").then(r => r.json()).then(setCatalogo)
@@ -21,12 +22,12 @@ export default function FormularioCliente() {
   const categorias = [...new Set(catalogo.map(s => s.categoria))]
   const servicio = catalogo.find((s) => s.id === form.servicioId)
 
-  function handleArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleArchivo(idx: 0 | 1, e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
-    if (f.size > 10 * 1024 * 1024) { setErrorMsg("El archivo no puede superar 10 MB"); return }
+    if (f.size > 10 * 1024 * 1024) { setErrorMsg("Cada archivo no puede superar 10 MB"); return }
     setErrorMsg("")
-    setArchivo(f)
+    setArchivos(prev => { const n = [...prev]; n[idx] = f; return n })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,21 +35,25 @@ export default function FormularioCliente() {
     setEstado("enviando")
     setErrorMsg("")
     try {
-      let archivoUrl = ""
-      let archivoNombre = ""
-      if (archivo) {
-        const fd = new FormData()
-        fd.append("file", archivo)
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: fd })
-        if (!uploadRes.ok) { const err = await uploadRes.json(); throw new Error(err.error ?? "Error al subir el archivo") }
-        const uploadData = await uploadRes.json()
-        archivoUrl = uploadData.url
-        archivoNombre = uploadData.nombre
+      async function subirArchivo(f: File) {
+        const fd = new FormData(); fd.append("file", f)
+        const r = await fetch("/api/upload", { method: "POST", body: fd })
+        if (!r.ok) { const err = await r.json(); throw new Error(err.error ?? "Error al subir archivo") }
+        return await r.json() as { url: string; nombre: string }
       }
+      const [u1, u2] = await Promise.all([
+        archivos[0] ? subirArchivo(archivos[0]) : null,
+        archivos[1] ? subirArchivo(archivos[1]) : null,
+      ])
       const res = await fetch("/api/solicitudes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, clienteWhatsapp: "52" + form.clienteWhatsapp.replace(/\D/g, ""), archivoUrl, archivoNombre }),
+        body: JSON.stringify({
+          ...form,
+          clienteWhatsapp: "52" + form.clienteWhatsapp.replace(/\D/g, ""),
+          archivoUrl: u1?.url ?? "", archivoNombre: u1?.nombre ?? "",
+          archivo2Url: u2?.url ?? "", archivo2Nombre: u2?.nombre ?? "",
+        }),
       })
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -86,7 +91,7 @@ export default function FormularioCliente() {
             </a>
           )}
           <div>
-            <button onClick={() => { setEstado("idle"); setForm({ clienteNombre: "", clienteWhatsapp: "", servicioId: "", notas: "" }); setArchivo(null) }}
+            <button onClick={() => { setEstado("idle"); setForm({ clienteNombre: "", clienteWhatsapp: "", servicioId: "", notas: "" }); setArchivos([null, null]) }}
               className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
               Enviar otra solicitud →
             </button>
@@ -157,24 +162,32 @@ export default function FormularioCliente() {
                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors resize-none" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Documentos <span className="text-slate-300 font-normal">(opcional)</span></label>
-              <div onClick={() => inputArchivo.current?.click()}
-                className={`border-2 border-dashed rounded-xl px-4 py-5 text-center cursor-pointer transition-colors ${archivo ? "border-blue-300 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"}`}>
-                {archivo ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <span className="text-sm text-blue-700 font-medium">{archivo.name}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setArchivo(null); if (inputArchivo.current) inputArchivo.current.value = "" }} className="text-slate-400 hover:text-red-400 ml-1">✕</button>
-                  </div>
-                ) : (
-                  <div>
-                    <svg className="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                    <p className="text-sm text-slate-400">Toca para adjuntar un archivo</p>
-                    <p className="text-xs text-slate-300 mt-1">PDF, Word, Excel, imagen · máx. 10 MB</p>
-                  </div>
-                )}
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Documentos <span className="text-slate-300 font-normal">(opcional · máx. 2 archivos)</span></label>
+              <div className="space-y-2">
+                {([0, 1] as const).map((idx) => {
+                  const ref = idx === 0 ? inputArchivo1 : inputArchivo2
+                  const f = archivos[idx]
+                  return (
+                    <div key={idx} onClick={() => ref.current?.click()}
+                      className={`border-2 border-dashed rounded-xl px-4 py-4 text-center cursor-pointer transition-colors ${f ? "border-blue-300 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"}`}>
+                      {f ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          <span className="text-sm text-blue-700 font-medium truncate max-w-[220px]">{f.name}</span>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setArchivos(prev => { const n=[...prev]; n[idx]=null; return n }); if(ref.current) ref.current.value="" }} className="text-slate-400 hover:text-red-400 ml-1 flex-shrink-0">✕</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2 text-slate-400">
+                          <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                          <span className="text-sm">Archivo {idx + 1} — toca para adjuntar</span>
+                        </div>
+                      )}
+                      <input ref={ref} type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onChange={(e) => handleArchivo(idx, e)} />
+                    </div>
+                  )
+                })}
               </div>
-              <input ref={inputArchivo} type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" onChange={handleArchivo} />
+              <p className="text-xs text-slate-300 mt-1.5">PDF, Word, Excel, imagen · máx. 10 MB por archivo</p>
             </div>
             {(estado === "error" || errorMsg) && <p className="text-sm text-red-500 text-center">{errorMsg || "Ocurrió un error. Intenta de nuevo."}</p>}
             <button type="submit" disabled={estado === "enviando"}

@@ -268,6 +268,7 @@ export default function Dashboard() {
                       {s.clienteNombre} · Folio #{String(s.folio).padStart(4,"0")} · Terminó hace {fmtTiempo(s.actualizadoEn)} — atendido por {s.asignadoA}
                     </div>
                     <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+                    <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
 
                     {/* Documento de entrega */}
                     <div className="mt-2">
@@ -346,6 +347,7 @@ export default function Dashboard() {
                         <div className="text-sm font-medium text-slate-800">{s.servicioNombre}</div>
                         <div className="text-xs text-slate-400 mt-0.5">{s.clienteNombre} · #{String(s.folio).padStart(4,"0")} · hace {fmtTiempo(s.creadoEn)}</div>
                         <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+                    <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
                       </div>
                       {alerta !== "ok" && <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${ALERTA_TAG[alerta]}`}>{alerta === "vencida" ? "⚠ Vencida" : "⏱ Demorada"}</span>}
                       <select value={asignando[s.id] ?? ""} onChange={(e) => setAsignando({ ...asignando, [s.id]: e.target.value })}
@@ -458,6 +460,7 @@ export default function Dashboard() {
                       <div className="text-sm font-medium text-slate-800 truncate">{s.servicioNombre}</div>
                       <div className="text-xs text-slate-400">#{String(s.folio).padStart(4,"0")} · {fmtTiempo(s.creadoEn)}</div>
                       <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+                    <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
                     </div>
                   </div>
                   <div className="min-w-0">
