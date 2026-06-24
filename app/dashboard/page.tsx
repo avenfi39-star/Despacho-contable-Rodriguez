@@ -1,8 +1,8 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Solicitud } from "@/lib/db"
-import { CATALOGO, EQUIPO, NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
+import type { ServicioDB, Solicitud } from "@/lib/db"
+import { EQUIPO, NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
 
 const TEAM_PHONES: Record<string, string> = {
   "Beatriz":    "526671399418",
@@ -70,7 +70,10 @@ export default function Dashboard() {
   const [docEntrega, setDocEntrega]     = useState<Record<string, { url: string; nombre: string }>>({})
   const [subiendoDoc, setSubiendoDoc]   = useState<string | null>(null)
   const [regresando, setRegresando]     = useState<string | null>(null)
-  const [vista, setVista]               = useState<"equipo" | "lista">("equipo")
+  const [vista, setVista]               = useState<"equipo" | "lista" | "servicios">("equipo")
+  const [servicios, setServicios]       = useState<ServicioDB[]>([])
+  const [nuevoSvc, setNuevoSvc]         = useState({ nombre: "", categoria: "", nivel: "green" as ServicioDB["nivel"], diasHabiles: 1 })
+  const [guardandoSvc, setGuardandoSvc] = useState(false)
 
   const cargar = useCallback(async () => {
     const r = await fetch("/api/solicitudes")
@@ -78,7 +81,13 @@ export default function Dashboard() {
     setLoading(false)
   }, [])
 
+  const cargarServicios = useCallback(async () => {
+    const r = await fetch("/api/servicios")
+    setServicios(await r.json())
+  }, [])
+
   useEffect(() => { cargar(); const t = setInterval(cargar, 30000); return () => clearInterval(t) }, [cargar])
+  useEffect(() => { cargarServicios() }, [cargarServicios])
 
   // ── Acciones ──────────────────────────────────────────────────────────────
 
@@ -192,8 +201,9 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex border border-slate-200 rounded-lg overflow-hidden text-xs">
-            <button onClick={() => setVista("equipo")} className={`px-3 py-1.5 transition-colors ${vista === "equipo" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Por persona</button>
-            <button onClick={() => setVista("lista")}  className={`px-3 py-1.5 transition-colors ${vista === "lista"  ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Lista</button>
+            <button onClick={() => setVista("equipo")}    className={`px-3 py-1.5 transition-colors ${vista === "equipo"    ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Por persona</button>
+            <button onClick={() => setVista("lista")}     className={`px-3 py-1.5 transition-colors ${vista === "lista"     ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Lista</button>
+            <button onClick={() => setVista("servicios")} className={`px-3 py-1.5 transition-colors ${vista === "servicios" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Servicios</button>
           </div>
           <button onClick={cargar} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -328,7 +338,7 @@ export default function Dashboard() {
                 </div>
                 {pendientes.map((s) => {
                   const alerta = nivelAlerta(s)
-                  const permitidos = CATALOGO.find((c) => c.id === s.servicioId)?.asignadosPermitidos ?? EQUIPO_NOMBRES
+                  const permitidos = EQUIPO_NOMBRES
                   return (
                     <div key={s.id} className={`px-5 py-4 flex items-center gap-4 border-b border-slate-50 last:border-b-0 ${ALERTA_BG[alerta]}`}>
                       <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${NIVEL_DOT[s.nivel]}`} />
@@ -430,7 +440,7 @@ export default function Dashboard() {
             {solicitudes.length === 0 && <div className="py-12 text-center text-sm text-slate-400">No hay solicitudes aún.</div>}
             {solicitudes.map((s) => {
               const alerta    = nivelAlerta(s)
-              const permitidos = CATALOGO.find((c) => c.id === s.servicioId)?.asignadosPermitidos ?? EQUIPO_NOMBRES
+              const permitidos = EQUIPO_NOMBRES ?? EQUIPO_NOMBRES
               const ESTADO_LABEL: Record<string, string> = {
                 pendiente: "Nueva", en_curso: "En curso", en_revision: "En revisión",
                 con_observaciones: "Con obs.", listo: "✓ Lista",
@@ -493,6 +503,71 @@ export default function Dashboard() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* ── Vista Servicios ───────────────────────────────────────────────── */}
+        {vista === "servicios" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Agregar nuevo */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="text-sm font-semibold text-slate-700 mb-4">Agregar servicio</h2>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <input placeholder="Nombre del servicio" value={nuevoSvc.nombre}
+                  onChange={e => setNuevoSvc(p => ({ ...p, nombre: e.target.value }))}
+                  className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                <input placeholder="Categoría (ej. Nómina)" value={nuevoSvc.categoria}
+                  onChange={e => setNuevoSvc(p => ({ ...p, categoria: e.target.value }))}
+                  className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                <select value={nuevoSvc.nivel} onChange={e => setNuevoSvc(p => ({ ...p, nivel: e.target.value as ServicioDB["nivel"] }))}
+                  className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                  <option value="green">🟢 Trámite rápido</option>
+                  <option value="amber">🟡 Complejidad media</option>
+                  <option value="red">🔴 Alta complejidad</option>
+                </select>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-slate-500 whitespace-nowrap">Días hábiles:</label>
+                  <input type="number" min={0} max={30} value={nuevoSvc.diasHabiles}
+                    onChange={e => setNuevoSvc(p => ({ ...p, diasHabiles: Number(e.target.value) }))}
+                    className="w-20 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                </div>
+                <button disabled={guardandoSvc || !nuevoSvc.nombre || !nuevoSvc.categoria}
+                  onClick={async () => {
+                    setGuardandoSvc(true)
+                    await fetch("/api/servicios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nuevoSvc) })
+                    setNuevoSvc({ nombre: "", categoria: "", nivel: "green", diasHabiles: 1 })
+                    await cargarServicios()
+                    setGuardandoSvc(false)
+                  }}
+                  className="bg-blue-600 text-white rounded-xl px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                  {guardandoSvc ? "Guardando…" : "+ Agregar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de servicios agrupados por categoría */}
+            {[...new Set(servicios.map(s => s.categoria))].map(cat => (
+              <div key={cat} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{cat}</span>
+                </div>
+                {servicios.filter(s => s.categoria === cat).map(s => (
+                  <div key={s.id} className={`flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0 ${!s.activo ? "opacity-40" : ""}`}>
+                    <span className="text-base">{s.nivel === "red" ? "🔴" : s.nivel === "amber" ? "🟡" : "🟢"}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-slate-800">{s.nombre}</div>
+                      <div className="text-xs text-slate-400">{s.diasHabiles === 0 ? "mismo día" : `${s.diasHabiles} día${s.diasHabiles !== 1 ? "s" : ""} hábil${s.diasHabiles !== 1 ? "es" : ""}`}</div>
+                    </div>
+                    <button onClick={async () => {
+                      await fetch(`/api/servicios/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo: !s.activo }) })
+                      cargarServicios()
+                    }} className={`text-xs rounded-lg px-3 py-1.5 border transition-colors ${s.activo ? "border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500" : "border-green-200 text-green-600 hover:bg-green-50"}`}>
+                      {s.activo ? "Desactivar" : "Activar"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
       </div>

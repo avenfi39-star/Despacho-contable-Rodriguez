@@ -26,6 +26,73 @@ function sql() {
   return neon(process.env.DATABASE_URL!)
 }
 
+export interface ServicioDB {
+  id: string
+  nombre: string
+  categoria: string
+  nivel: import("./catalog").Nivel
+  diasHabiles: number
+  activo: boolean
+}
+
+async function inicializarServicios() {
+  const db = sql()
+  await db`
+    CREATE TABLE IF NOT EXISTS servicios (
+      id TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      categoria TEXT NOT NULL,
+      nivel TEXT NOT NULL,
+      dias_habiles INTEGER NOT NULL DEFAULT 1,
+      activo BOOLEAN NOT NULL DEFAULT TRUE
+    )
+  `
+  const { CATALOGO } = await import("./catalog")
+  const existing = await db`SELECT id FROM servicios`
+  const existingIds = new Set(existing.map((r) => r.id as string))
+  for (const s of CATALOGO) {
+    if (!existingIds.has(s.id)) {
+      await db`INSERT INTO servicios (id, nombre, categoria, nivel, dias_habiles, activo)
+               VALUES (${s.id}, ${s.nombre}, ${s.categoria}, ${s.nivel}, ${s.diasHabiles}, TRUE)`
+    }
+  }
+}
+
+export async function listarServicios(soloActivos = false): Promise<ServicioDB[]> {
+  await inicializarServicios()
+  const db = sql()
+  const rows = soloActivos
+    ? await db`SELECT * FROM servicios WHERE activo = TRUE ORDER BY categoria, nombre`
+    : await db`SELECT * FROM servicios ORDER BY categoria, nombre`
+  return rows.map((r) => ({
+    id: r.id as string,
+    nombre: r.nombre as string,
+    categoria: r.categoria as string,
+    nivel: r.nivel as ServicioDB["nivel"],
+    diasHabiles: r.dias_habiles as number,
+    activo: r.activo as boolean,
+  }))
+}
+
+export async function crearServicio(data: Omit<ServicioDB, "id" | "activo">): Promise<ServicioDB> {
+  await inicializarServicios()
+  const db = sql()
+  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+  const rows = await db`INSERT INTO servicios (id, nombre, categoria, nivel, dias_habiles, activo)
+    VALUES (${id}, ${data.nombre}, ${data.categoria}, ${data.nivel}, ${data.diasHabiles}, TRUE) RETURNING *`
+  return { id: rows[0].id, nombre: rows[0].nombre, categoria: rows[0].categoria, nivel: rows[0].nivel, diasHabiles: rows[0].dias_habiles, activo: rows[0].activo }
+}
+
+export async function actualizarServicio(id: string, patch: Partial<ServicioDB>): Promise<void> {
+  await inicializarServicios()
+  const db = sql()
+  if (patch.activo !== undefined) await db`UPDATE servicios SET activo=${patch.activo} WHERE id=${id}`
+  if (patch.nombre !== undefined) await db`UPDATE servicios SET nombre=${patch.nombre} WHERE id=${id}`
+  if (patch.categoria !== undefined) await db`UPDATE servicios SET categoria=${patch.categoria} WHERE id=${id}`
+  if (patch.nivel !== undefined) await db`UPDATE servicios SET nivel=${patch.nivel} WHERE id=${id}`
+  if (patch.diasHabiles !== undefined) await db`UPDATE servicios SET dias_habiles=${patch.diasHabiles} WHERE id=${id}`
+}
+
 async function inicializar() {
   const db = sql()
   await db`

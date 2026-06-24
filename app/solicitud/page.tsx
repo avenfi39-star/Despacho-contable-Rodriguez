@@ -1,7 +1,8 @@
 "use client"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { CATALOGO, CATEGORIAS, NIVEL_TIEMPO } from "@/lib/catalog"
+import { NIVEL_TIEMPO } from "@/lib/catalog"
+import type { ServicioDB } from "@/lib/db"
 
 export default function FormularioCliente() {
   const [form, setForm] = useState({ clienteNombre: "", clienteWhatsapp: "", servicioId: "", notas: "" })
@@ -10,9 +11,15 @@ export default function FormularioCliente() {
   const [errorMsg, setErrorMsg] = useState("")
   const [folio, setFolio] = useState<number | null>(null)
   const [linkWA, setLinkWA] = useState<string | null>(null)
+  const [catalogo, setCatalogo] = useState<ServicioDB[]>([])
   const inputArchivo = useRef<HTMLInputElement>(null)
 
-  const servicio = CATALOGO.find((s) => s.id === form.servicioId)
+  useEffect(() => {
+    fetch("/api/servicios?activos=1").then(r => r.json()).then(setCatalogo)
+  }, [])
+
+  const categorias = [...new Set(catalogo.map(s => s.categoria))]
+  const servicio = catalogo.find((s) => s.id === form.servicioId)
 
   function handleArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -128,9 +135,9 @@ export default function FormularioCliente() {
               <select required value={form.servicioId} onChange={(e) => setForm({ ...form, servicioId: e.target.value })}
                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white transition-colors appearance-none">
                 <option value="">— Selecciona un servicio —</option>
-                {CATEGORIAS.map((cat) => (
+                {categorias.map((cat) => (
                   <optgroup key={cat} label={cat}>
-                    {CATALOGO.filter((s) => s.categoria === cat).map((s) => (
+                    {catalogo.filter((s) => s.categoria === cat).map((s) => (
                       <option key={s.id} value={s.id}>{s.nombre}</option>
                     ))}
                   </optgroup>
