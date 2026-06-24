@@ -44,6 +44,20 @@ const ALERTA_TAG:  Record<Alerta, string> = { ok: "", advertencia: "bg-amber-100
 
 const EQUIPO_NOMBRES = EQUIPO.map((e) => e.nombre)
 
+function ArchivoLink({ url, nombre }: { url: string; nombre: string }) {
+  if (!url) return null
+  const ext = nombre.split(".").pop()?.toLowerCase() ?? ""
+  const icono = ext === "pdf" ? "📄" : ["jpg","jpeg","png"].includes(ext) ? "🖼️" : ["xls","xlsx"].includes(ext) ? "📊" : "📎"
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-2.5 py-1 transition-colors mt-2">
+      <span>{icono}</span>
+      <span className="max-w-[180px] truncate">{nombre}</span>
+      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+    </a>
+  )
+}
+
 export default function Dashboard() {
   const [solicitudes, setSolicitudes]   = useState<Solicitud[]>([])
   const [loading, setLoading]           = useState(true)
@@ -225,6 +239,7 @@ export default function Dashboard() {
                     <div className="text-xs text-slate-400 mt-0.5">
                       {s.clienteNombre} · Folio #{String(s.folio).padStart(4,"0")} · Terminó hace {fmtTiempo(s.actualizadoEn)} — atendido por {s.asignadoA}
                     </div>
+                    <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
 
                     {/* Área de observaciones */}
                     {regresando === s.id ? (
@@ -284,6 +299,7 @@ export default function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-slate-800">{s.servicioNombre}</div>
                         <div className="text-xs text-slate-400 mt-0.5">{s.clienteNombre} · #{String(s.folio).padStart(4,"0")} · hace {fmtTiempo(s.creadoEn)}</div>
+                        <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
                       </div>
                       {alerta !== "ok" && <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${ALERTA_TAG[alerta]}`}>{alerta === "vencida" ? "⚠ Vencida" : "⏱ Demorada"}</span>}
                       <select value={asignando[s.id] ?? ""} onChange={(e) => setAsignando({ ...asignando, [s.id]: e.target.value })}
@@ -391,6 +407,7 @@ export default function Dashboard() {
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-slate-800 truncate">{s.servicioNombre}</div>
                       <div className="text-xs text-slate-400">#{String(s.folio).padStart(4,"0")} · {fmtTiempo(s.creadoEn)}</div>
+                      <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
                     </div>
                   </div>
                   <div className="min-w-0">
