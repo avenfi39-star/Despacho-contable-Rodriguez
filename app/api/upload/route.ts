@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return NextResponse.json({ error: "Almacenamiento de archivos no configurado. Contacta al administrador." }, { status: 503 })
+    const token = process.env.BLOB_READ_WRITE_TOKEN
+    if (!token) {
+      return NextResponse.json({ error: "Almacenamiento de archivos no configurado. Contacta al administrador.", debug: "NO_TOKEN" }, { status: 503 })
     }
 
     const formData = await req.formData()
@@ -19,15 +20,16 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split(".").pop()?.toLowerCase()
     const permitidos = ["pdf", "jpg", "jpeg", "png", "doc", "docx", "xls", "xlsx"]
     if (!ext || !permitidos.includes(ext)) {
-      return NextResponse.json({ error: "Tipo de archivo no permitido. Usa PDF, Word, Excel o imagen." }, { status: 400 })
+      return NextResponse.json({ error: "Tipo de archivo no permitido." }, { status: 400 })
     }
 
     const nombre = `solicitudes/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const blob = await put(nombre, file, { access: "public" })
+    const blob = await put(nombre, file, { access: "public", token })
 
     return NextResponse.json({ url: blob.url, nombre: file.name })
   } catch (err) {
-    console.error("Error subiendo archivo:", err)
-    return NextResponse.json({ error: "Error al subir el archivo. Intenta de nuevo." }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error("Upload error:", msg)
+    return NextResponse.json({ error: "Error al subir el archivo. Intenta de nuevo.", debug: msg }, { status: 500 })
   }
 }
