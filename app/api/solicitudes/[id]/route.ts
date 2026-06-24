@@ -56,13 +56,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (accion === "aprobar") {
-    const updated = await actualizarSolicitud(id, { estado: "listo" })
+    const { documentoUrl, documentoNombre } = body
+    const entregaToken = crypto.randomUUID().replace(/-/g, "")
+    const patch: Partial<import("@/lib/db").Solicitud> = { estado: "listo" }
+    if (documentoUrl && documentoNombre) {
+      patch.documentoUrl = documentoUrl
+      patch.documentoNombre = documentoNombre
+      patch.entregaToken = entregaToken
+    }
+    const updated = await actualizarSolicitud(id, patch)
+    const entregaUrl = documentoUrl ? `${base}/entrega/${entregaToken}` : null
     const msg =
       `✅ *Tu trámite está listo — Despacho Rodríguez*\n\n` +
-      `Hola, tu solicitud ha sido completada y revisada:\n\n` +
+      `Hola *${s.clienteNombre}*, tu solicitud ha sido completada y revisada:\n\n` +
       `📋 *${s.servicioNombre}*\n` +
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n\n` +
-      `Comunícate con nosotros para recibir tu documentación.\n¡Gracias por tu confianza!`
+      (entregaUrl
+        ? `📥 *Descarga tu documento aquí:*\n👉 ${entregaUrl}\n\n`
+        : `Comunícate con nosotros para recibir tu documentación.\n\n`) +
+      `¡Gracias por tu confianza!`
     const linkCliente = waLink(s.clienteWhatsapp, msg)
     return NextResponse.json({ ...updated, linkCliente })
   }

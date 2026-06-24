@@ -67,6 +67,8 @@ export default function Dashboard() {
   const [asignando, setAsignando]       = useState<Record<string, string>>({})
   const [accionando, setAccionando]     = useState<string | null>(null)
   const [observacion, setObservacion]   = useState<Record<string, string>>({})
+  const [docEntrega, setDocEntrega]     = useState<Record<string, { url: string; nombre: string }>>({})
+  const [subiendoDoc, setSubiendoDoc]   = useState<string | null>(null)
   const [regresando, setRegresando]     = useState<string | null>(null)
   const [vista, setVista]               = useState<"equipo" | "lista">("equipo")
 
@@ -105,19 +107,27 @@ export default function Dashboard() {
       .finally(() => setAccionando(null))
   }
 
+  async function subirDocEntrega(id: string, file: File) {
+    setSubiendoDoc(id)
+    const fd = new FormData()
+    fd.append("file", file)
+    const res = await fetch("/api/upload", { method: "POST", body: fd })
+    const data = await res.json()
+    if (res.ok) setDocEntrega((p) => ({ ...p, [id]: { url: data.url, nombre: data.nombre } }))
+    setSubiendoDoc(null)
+  }
+
   function handleAprobar(s: Solicitud) {
-    abrirWA(s.clienteWhatsapp,
-      `✅ *Tu trámite está listo — Despacho Rodríguez*\n\n` +
-      `Hola, tu solicitud ha sido completada y revisada:\n\n` +
-      `📋 *${s.servicioNombre}*\n` +
-      `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n\n` +
-      `Comunícate con nosotros para recibir tu documentación. ¡Gracias!`
-    )
+    const doc = docEntrega[s.id]
     setAccionando(s.id)
     fetch(`/api/solicitudes/${s.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "aprobar" }),
-    }).then(() => cargar()).finally(() => setAccionando(null))
+      body: JSON.stringify({ accion: "aprobar", documentoUrl: doc?.url ?? "", documentoNombre: doc?.nombre ?? "" }),
+    }).then(async (res) => {
+      const data = await res.json()
+      if (data.linkCliente) window.open(data.linkCliente, "_blank")
+      cargar()
+    }).finally(() => setAccionando(null))
   }
 
   function handleRegresar(s: Solicitud) {
@@ -248,6 +258,24 @@ export default function Dashboard() {
                       {s.clienteNombre} · Folio #{String(s.folio).padStart(4,"0")} · Terminó hace {fmtTiempo(s.actualizadoEn)} — atendido por {s.asignadoA}
                     </div>
                     <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+
+                    {/* Documento de entrega */}
+                    <div className="mt-2">
+                      {docEntrega[s.id] ? (
+                        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+                          <span>📄</span>
+                          <span className="truncate max-w-[200px]">{docEntrega[s.id].nombre}</span>
+                          <button onClick={() => setDocEntrega((p) => { const n = {...p}; delete n[s.id]; return n })} className="text-slate-400 hover:text-red-400 ml-1">✕</button>
+                        </div>
+                      ) : (
+                        <label className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-600 cursor-pointer border border-dashed border-slate-200 hover:border-blue-300 rounded-lg px-3 py-1.5 transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                          {subiendoDoc === s.id ? "Subiendo..." : "Adjuntar documento de entrega (opcional)"}
+                          <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirDocEntrega(s.id, f) }} />
+                        </label>
+                      )}
+                    </div>
 
                     {/* Área de observaciones */}
                     {regresando === s.id ? (

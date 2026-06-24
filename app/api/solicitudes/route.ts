@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
     observaciones: "",
     archivoUrl: archivoUrl ?? "",
     archivoNombre: archivoNombre ?? "",
+    documentoUrl: "",
+    documentoNombre: "",
+    entregaToken: "",
   })
 
   const linkCliente = waLink(
