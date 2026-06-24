@@ -389,48 +389,44 @@ export default function Dashboard() {
                       <div className="px-5 py-6 text-center text-xs text-slate-300">Sin tareas asignadas</div>
                     )}
 
+                    {(activas.length > 0 || terminadas.length > 0) && (
+                      <div className="px-5 py-2 border-b border-slate-100 grid grid-cols-[20px_56px_1fr_1fr] gap-2">
+                        <span />
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Folio</span>
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Trabajo</span>
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Cliente</span>
+                      </div>
+                    )}
+
                     {activas.map((s) => {
                       const alerta = nivelAlerta(s)
                       return (
-                        <div key={s.id} className={`px-5 py-3.5 border-b border-slate-50 ${ALERTA_BG[alerta]}`}>
-                          <div className="flex items-center gap-3 mb-2">
+                        <div key={s.id} className={`px-5 border-b border-slate-50 ${ALERTA_BG[alerta]}`}>
+                          <div className="grid grid-cols-[20px_56px_1fr_1fr] gap-2 items-center py-3">
                             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${NIVEL_DOT[s.nivel]}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-mono text-slate-400 flex-shrink-0">#{String(s.folio).padStart(4,"0")}</span>
-                                <div className="text-sm font-medium text-slate-800 truncate">{s.servicioNombre}</div>
-                              </div>
-                              <div className="text-xs text-slate-400">
-                                {s.clienteNombre} · {fmtTiempo(s.actualizadoEn)}
-                                {s.estado === "con_observaciones" && <span className="ml-1 text-amber-600 font-medium">· con observaciones</span>}
-                              </div>
+                            <span className="text-xs font-mono text-slate-700 font-medium">#{String(s.folio).padStart(4,"0")}</span>
+                            <div className="text-sm font-medium text-slate-800 truncate">
+                              {s.servicioNombre}
+                              {s.estado === "con_observaciones" && <span className="ml-1.5 text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">obs.</span>}
                             </div>
+                            <div className="text-xs text-slate-600 truncate">{s.clienteNombre}</div>
                           </div>
-                          <div className="flex items-center gap-2 pl-5">
-                            {alerta !== "ok" && <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ALERTA_TAG[alerta]}`}>{alerta === "vencida" ? "⚠ Vencida" : "⏱ Demorada"}</span>}
-                            {alerta !== "ok" && (
-                              <button onClick={() => handleRecordar(s)} className="ml-auto text-xs border border-amber-200 text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 transition-colors">
+                          {alerta !== "ok" && (
+                            <div className="flex items-center gap-2 pb-2.5 pl-6">
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ALERTA_TAG[alerta]}`}>{alerta === "vencida" ? "⚠ Vencida" : "⏱ Demorada"}</span>
+                              <button onClick={() => handleRecordar(s)} className="ml-auto text-xs border border-amber-200 text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1 hover:bg-amber-100 transition-colors">
                                 Recordar WA
                               </button>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
 
-                    {terminadas.length > 0 && (
-                      <div className="px-5 py-2 border-b border-slate-100 grid grid-cols-[56px_1fr_1fr] gap-2">
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Folio</span>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Trabajo</span>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Cliente</span>
-                      </div>
-                    )}
                     {terminadas.slice(0,2).map((s) => (
-                      <div key={s.id} className="px-5 py-2.5 border-b border-slate-50 grid grid-cols-[56px_1fr_1fr] gap-2 items-center opacity-60">
-                        <div className="flex items-center gap-1.5">
-                          <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                          <span className="text-xs font-mono text-slate-600">#{String(s.folio).padStart(4,"0")}</span>
-                        </div>
+                      <div key={s.id} className="px-5 py-2.5 border-b border-slate-50 grid grid-cols-[20px_56px_1fr_1fr] gap-2 items-center opacity-75">
+                        <svg className="w-3 h-3 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-xs font-mono text-slate-600">#{String(s.folio).padStart(4,"0")}</span>
                         <div className="text-xs text-slate-600 truncate line-through">{s.servicioNombre}</div>
                         <div className="text-xs text-slate-500 truncate">{s.clienteNombre}</div>
                       </div>
