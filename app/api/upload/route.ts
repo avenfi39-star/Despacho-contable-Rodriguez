@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const nombre = `solicitudes/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const blob = await put(nombre, file, { access: "public", token })
+    const blob = await put(nombre, file, { access: "private", token })
 
     return NextResponse.json({ url: blob.url, nombre: file.name })
   } catch (err) {

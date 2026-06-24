@@ -15,7 +15,7 @@ function ArchivoLink({ url, nombre }: { url: string; nombre: string }) {
   const ext = nombre.split(".").pop()?.toLowerCase() ?? ""
   const icono = ext === "pdf" ? "📄" : ["jpg","jpeg","png"].includes(ext) ? "🖼️" : ["xls","xlsx"].includes(ext) ? "📊" : "📎"
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
+    <a href={`/api/archivo?url=${encodeURIComponent(url)}`} target="_blank" rel="noopener noreferrer"
       className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1 transition-colors mt-2">
       <span>{icono}</span>
       <span className="max-w-[160px] truncate">{nombre}</span>
