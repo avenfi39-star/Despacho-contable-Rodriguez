@@ -23,7 +23,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!asignadoA) return NextResponse.json({ error: "Falta asignadoA" }, { status: 400 })
     const updated = await actualizarSolicitud(id, { asignadoA, estado: "en_curso" })
     const phone = TEAM_PHONES[asignadoA]
-    const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
       `📌 *Nueva tarea asignada — Despacho Rodríguez*\n\n` +
       `Hola *${asignadoA}*, tienes una solicitud nueva:\n\n` +
@@ -32,9 +31,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n` +
       `⏱ Nivel: ${NIVEL_LABEL[s.nivel]}\n` +
       (s.notas ? `\n📝 Notas: ${s.notas}\n` : "") +
-      `\nCuando termines, marca la solicitud como lista aquí:\n` +
-      `👉 ${listoUrl}\n\n` +
-      `Saúl recibirá aviso automático para revisar antes de notificar al cliente.`
+      `\nEntra al sistema y selecciona *Acceso colaboradores* para verla:\n` +
+      `👉 ${base}\n\n` +
+      `Saúl revisará antes de notificar al cliente.`
     const linkTrabajador = phone ? waLink(phone, msg) : null
     return NextResponse.json({ ...updated, linkTrabajador })
   }
@@ -83,7 +82,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const nota = observaciones ?? "Revisar detalles."
     const updated = await actualizarSolicitud(id, { estado: "con_observaciones", observaciones: nota })
     const phone = TEAM_PHONES[s.asignadoA]
-    const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
       `🔄 *Solicitud con observaciones — Despacho Rodríguez*\n\n` +
       `Hola *${s.asignadoA}*, Saúl revisó la solicitud y tiene observaciones:\n\n` +
@@ -91,8 +89,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       `👤 Cliente: ${s.clienteNombre}\n` +
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n\n` +
       `📝 *Observaciones:*\n${nota}\n\n` +
-      `Cuando hagas las correcciones, marca como listo aquí:\n` +
-      `👉 ${listoUrl}`
+      `Entra al sistema para ver los detalles y marcarla como lista:\n` +
+      `👉 ${base}`
     const linkTrabajador = phone ? waLink(phone, msg) : null
     return NextResponse.json({ ...updated, linkTrabajador })
   }
