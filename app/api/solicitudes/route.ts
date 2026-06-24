@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { clienteNombre, clienteWhatsapp, servicioId, notas } = body
+  const { clienteNombre, clienteWhatsapp, servicioId, notas, archivoUrl, archivoNombre } = body
 
   if (!clienteNombre || !clienteWhatsapp || !servicioId) {
     return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 })
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
     notas: notas ?? "",
     asignadoA: "",
     observaciones: "",
+    archivoUrl: archivoUrl ?? "",
+    archivoNombre: archivoNombre ?? "",
   })
 
   const linkCliente = waLink(

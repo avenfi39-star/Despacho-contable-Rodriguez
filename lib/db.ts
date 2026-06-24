@@ -13,6 +13,8 @@ export interface Solicitud {
   asignadoA: string
   estado: "pendiente" | "en_curso" | "en_revision" | "con_observaciones" | "listo"
   observaciones: string
+  archivoUrl: string
+  archivoNombre: string
   creadoEn: string
   actualizadoEn: string
 }
@@ -36,10 +38,15 @@ async function inicializar() {
       asignado_a TEXT DEFAULT '',
       estado TEXT DEFAULT 'pendiente',
       observaciones TEXT DEFAULT '',
+      archivo_url TEXT DEFAULT '',
+      archivo_nombre TEXT DEFAULT '',
       creado_en TIMESTAMPTZ DEFAULT NOW(),
       actualizado_en TIMESTAMPTZ DEFAULT NOW()
     )
   `
+  // Agregar columnas si ya existe la tabla sin ellas
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo_url TEXT DEFAULT ''`
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo_nombre TEXT DEFAULT ''`
 }
 
 function rowToSolicitud(r: Record<string, unknown>): Solicitud {
@@ -55,6 +62,8 @@ function rowToSolicitud(r: Record<string, unknown>): Solicitud {
     asignadoA: r.asignado_a as string,
     estado: r.estado as Solicitud["estado"],
     observaciones: r.observaciones as string,
+    archivoUrl: (r.archivo_url as string) ?? "",
+    archivoNombre: (r.archivo_nombre as string) ?? "",
     creadoEn: (r.creado_en as Date).toISOString(),
     actualizadoEn: (r.actualizado_en as Date).toISOString(),
   }
@@ -67,8 +76,8 @@ export async function crearSolicitud(
   const db = sql()
   const id = crypto.randomUUID()
   const rows = await db`
-    INSERT INTO solicitudes (id, cliente_nombre, cliente_whatsapp, servicio_id, servicio_nombre, nivel, notas, asignado_a, observaciones)
-    VALUES (${id}, ${data.clienteNombre}, ${data.clienteWhatsapp}, ${data.servicioId}, ${data.servicioNombre}, ${data.nivel}, ${data.notas}, ${data.asignadoA}, ${data.observaciones})
+    INSERT INTO solicitudes (id, cliente_nombre, cliente_whatsapp, servicio_id, servicio_nombre, nivel, notas, asignado_a, observaciones, archivo_url, archivo_nombre)
+    VALUES (${id}, ${data.clienteNombre}, ${data.clienteWhatsapp}, ${data.servicioId}, ${data.servicioNombre}, ${data.nivel}, ${data.notas}, ${data.asignadoA}, ${data.observaciones}, ${data.archivoUrl}, ${data.archivoNombre})
     RETURNING *
   `
   return rowToSolicitud(rows[0])
@@ -96,8 +105,8 @@ export async function actualizarSolicitud(
   const db = sql()
   let rows
 
-  const asignadoA   = patch.asignadoA
-  const estado      = patch.estado
+  const asignadoA     = patch.asignadoA
+  const estado        = patch.estado
   const observaciones = patch.observaciones
 
   if (asignadoA !== undefined && estado !== undefined && observaciones !== undefined) {
