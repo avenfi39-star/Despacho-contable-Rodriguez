@@ -8,8 +8,15 @@ export default async function PaginaEntrega({ params }: { params: Promise<{ toke
 
   if (!s || !s.documentoUrl) notFound()
 
-  const ext = s.documentoNombre.split(".").pop()?.toLowerCase() ?? ""
-  const icono = ext === "pdf" ? "📄" : ["jpg","jpeg","png"].includes(ext) ? "🖼️" : ["xls","xlsx"].includes(ext) ? "📊" : "📎"
+  function iconoArchivo(nombre: string) {
+    const ext = nombre.split(".").pop()?.toLowerCase() ?? ""
+    return ext === "pdf" ? "📄" : ["jpg","jpeg","png"].includes(ext) ? "🖼️" : ["xls","xlsx"].includes(ext) ? "📊" : ext === "xml" ? "🗂️" : "📎"
+  }
+
+  const archivos = [
+    { nombre: s.documentoNombre, url: `/api/entrega/${token}?archivo=1` },
+    s.documento2Nombre ? { nombre: s.documento2Nombre, url: `/api/entrega/${token}?archivo=2` } : null,
+  ].filter(Boolean) as { nombre: string; url: string }[]
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
@@ -29,23 +36,27 @@ export default async function PaginaEntrega({ params }: { params: Promise<{ toke
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-lg font-semibold text-slate-800 mb-1">Tu documento está listo</h1>
+          <h1 className="text-lg font-semibold text-slate-800 mb-1">Tu documentación está lista</h1>
           <p className="text-xs text-slate-400 mb-1">Folio #{String(s.folio).padStart(4, "0")}</p>
           <p className="text-sm text-slate-500 mb-6">{s.servicioNombre}</p>
 
-          <a href={`/api/entrega/${token}`}
-            className="flex items-center gap-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-2xl px-5 py-4 transition-colors mb-3 text-left">
-            <span className="text-2xl">{icono}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-blue-800 truncate">{s.documentoNombre}</div>
-              <div className="text-xs text-blue-500">Toca para descargar</div>
-            </div>
-            <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </a>
+          <div className="space-y-3 mb-4">
+            {archivos.map((a) => (
+              <a key={a.url} href={a.url}
+                className="flex items-center gap-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-2xl px-5 py-4 transition-colors text-left">
+                <span className="text-2xl">{iconoArchivo(a.nombre)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-blue-800 truncate">{a.nombre}</div>
+                  <div className="text-xs text-blue-500">Toca para descargar</div>
+                </div>
+                <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+            ))}
+          </div>
 
-          <p className="text-xs text-slate-300 mt-4">
+          <p className="text-xs text-slate-300">
             Este enlace es exclusivo para ti · Despacho Contable Rodríguez
           </p>
         </div>

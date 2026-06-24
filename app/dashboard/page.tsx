@@ -67,7 +67,7 @@ export default function Dashboard() {
   const [asignando, setAsignando]       = useState<Record<string, string>>({})
   const [accionando, setAccionando]     = useState<string | null>(null)
   const [observacion, setObservacion]   = useState<Record<string, string>>({})
-  const [docEntrega, setDocEntrega]     = useState<Record<string, { url: string; nombre: string }>>({})
+  const [docEntrega, setDocEntrega]     = useState<Record<string, { url: string; nombre: string; url2: string; nombre2: string }>>({})
   const [subiendoDoc, setSubiendoDoc]   = useState<string | null>(null)
   const [regresando, setRegresando]     = useState<string | null>(null)
   const [vista, setVista]               = useState<"equipo" | "lista" | "servicios">("equipo")
@@ -116,13 +116,16 @@ export default function Dashboard() {
       .finally(() => setAccionando(null))
   }
 
-  async function subirDocEntrega(id: string, file: File) {
+  async function subirDocEntrega(id: string, file: File, slot: 1 | 2) {
     setSubiendoDoc(id)
     const fd = new FormData()
     fd.append("file", file)
     const res = await fetch("/api/upload", { method: "POST", body: fd })
     const data = await res.json()
-    if (res.ok) setDocEntrega((p) => ({ ...p, [id]: { url: data.url, nombre: data.nombre } }))
+    if (res.ok) setDocEntrega((p) => {
+      const prev = p[id] ?? { url: "", nombre: "", url2: "", nombre2: "" }
+      return { ...p, [id]: slot === 1 ? { ...prev, url: data.url, nombre: data.nombre } : { ...prev, url2: data.url, nombre2: data.nombre } }
+    })
     setSubiendoDoc(null)
   }
 
@@ -131,7 +134,7 @@ export default function Dashboard() {
     setAccionando(s.id)
     fetch(`/api/solicitudes/${s.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "aprobar", documentoUrl: doc?.url ?? "", documentoNombre: doc?.nombre ?? "" }),
+      body: JSON.stringify({ accion: "aprobar", documentoUrl: doc?.url ?? "", documentoNombre: doc?.nombre ?? "", documento2Url: doc?.url2 ?? "", documento2Nombre: doc?.nombre2 ?? "" }),
     }).then(async (res) => {
       const data = await res.json()
       if (data.linkCliente) window.open(data.linkCliente, "_blank")
@@ -270,22 +273,29 @@ export default function Dashboard() {
                     <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
                     <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
 
-                    {/* Documento de entrega */}
-                    <div className="mt-2">
-                      {docEntrega[s.id] ? (
-                        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
-                          <span>📄</span>
-                          <span className="truncate max-w-[200px]">{docEntrega[s.id].nombre}</span>
-                          <button onClick={() => setDocEntrega((p) => { const n = {...p}; delete n[s.id]; return n })} className="text-slate-400 hover:text-red-400 ml-1">✕</button>
-                        </div>
-                      ) : (
-                        <label className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-600 cursor-pointer border border-dashed border-slate-200 hover:border-blue-300 rounded-lg px-3 py-1.5 transition-colors">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                          {subiendoDoc === s.id ? "Subiendo..." : "Adjuntar documento de entrega (opcional)"}
-                          <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                            onChange={(e) => { const f = e.target.files?.[0]; if (f) subirDocEntrega(s.id, f) }} />
-                        </label>
-                      )}
+                    {/* Documentos de entrega — hasta 2 */}
+                    <div className="mt-2 space-y-1.5">
+                      {([1, 2] as const).map((slot) => {
+                        const doc = docEntrega[s.id]
+                        const nombre = slot === 1 ? doc?.nombre : doc?.nombre2
+                        return nombre ? (
+                          <div key={slot} className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-1.5">
+                            <span>📄</span>
+                            <span className="truncate max-w-[200px]">{nombre}</span>
+                            <button onClick={() => setDocEntrega((p) => {
+                              const prev = p[s.id] ?? { url: "", nombre: "", url2: "", nombre2: "" }
+                              return { ...p, [s.id]: slot === 1 ? { ...prev, url: "", nombre: "" } : { ...prev, url2: "", nombre2: "" } }
+                            })} className="text-slate-400 hover:text-red-400 ml-1">✕</button>
+                          </div>
+                        ) : (
+                          <label key={slot} className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-600 cursor-pointer border border-dashed border-slate-200 hover:border-blue-300 rounded-lg px-3 py-1.5 transition-colors">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                            {subiendoDoc === s.id ? "Subiendo..." : `Archivo ${slot} de entrega (opcional)`}
+                            <input type="file" className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.xml"
+                              onChange={(e) => { const f = e.target.files?.[0]; if (f) subirDocEntrega(s.id, f, slot) }} />
+                          </label>
+                        )
+                      })}
                     </div>
 
                     {/* Área de observaciones */}

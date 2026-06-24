@@ -19,6 +19,8 @@ export interface Solicitud {
   archivo2Nombre: string
   documentoUrl: string
   documentoNombre: string
+  documento2Url: string
+  documento2Nombre: string
   entregaToken: string
   creadoEn: string
   actualizadoEn: string
@@ -116,6 +118,8 @@ async function inicializar() {
       archivo2_nombre TEXT DEFAULT '',
       documento_url TEXT DEFAULT '',
       documento_nombre TEXT DEFAULT '',
+      documento2_url TEXT DEFAULT '',
+      documento2_nombre TEXT DEFAULT '',
       entrega_token TEXT DEFAULT '',
       creado_en TIMESTAMPTZ DEFAULT NOW(),
       actualizado_en TIMESTAMPTZ DEFAULT NOW()
@@ -128,6 +132,8 @@ async function inicializar() {
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS archivo2_nombre TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento_url TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento_nombre TEXT DEFAULT ''`
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento2_url TEXT DEFAULT ''`
+  await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS documento2_nombre TEXT DEFAULT ''`
   await db`ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS entrega_token TEXT DEFAULT ''`
 }
 
@@ -150,6 +156,8 @@ function rowToSolicitud(r: Record<string, unknown>): Solicitud {
     archivo2Nombre: (r.archivo2_nombre as string) ?? "",
     documentoUrl: (r.documento_url as string) ?? "",
     documentoNombre: (r.documento_nombre as string) ?? "",
+    documento2Url: (r.documento2_url as string) ?? "",
+    documento2Nombre: (r.documento2_nombre as string) ?? "",
     entregaToken: (r.entrega_token as string) ?? "",
     creadoEn: (r.creado_en as Date).toISOString(),
     actualizadoEn: (r.actualizado_en as Date).toISOString(),
@@ -206,7 +214,9 @@ export async function actualizarSolicitud(
   } else if (estado !== undefined && observaciones !== undefined) {
     rows = await db`UPDATE solicitudes SET estado=${estado}, observaciones=${observaciones}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
   } else if (estado !== undefined && documentoUrl !== undefined && documentoNombre !== undefined && entregaToken !== undefined) {
-    rows = await db`UPDATE solicitudes SET estado=${estado}, documento_url=${documentoUrl}, documento_nombre=${documentoNombre}, entrega_token=${entregaToken}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
+    const d2u = patch.documento2Url ?? ""
+    const d2n = patch.documento2Nombre ?? ""
+    rows = await db`UPDATE solicitudes SET estado=${estado}, documento_url=${documentoUrl}, documento_nombre=${documentoNombre}, documento2_url=${d2u}, documento2_nombre=${d2n}, entrega_token=${entregaToken}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
   } else if (estado !== undefined) {
     rows = await db`UPDATE solicitudes SET estado=${estado}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
   } else {

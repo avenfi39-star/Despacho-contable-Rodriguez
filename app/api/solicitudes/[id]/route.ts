@@ -55,12 +55,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (accion === "aprobar") {
-    const { documentoUrl, documentoNombre } = body
+    const { documentoUrl, documentoNombre, documento2Url, documento2Nombre } = body
     const entregaToken = crypto.randomUUID().replace(/-/g, "")
     const patch: Partial<import("@/lib/db").Solicitud> = { estado: "listo" }
     if (documentoUrl && documentoNombre) {
       patch.documentoUrl = documentoUrl
       patch.documentoNombre = documentoNombre
+      patch.documento2Url = documento2Url ?? ""
+      patch.documento2Nombre = documento2Nombre ?? ""
       patch.entregaToken = entregaToken
     }
     const updated = await actualizarSolicitud(id, patch)

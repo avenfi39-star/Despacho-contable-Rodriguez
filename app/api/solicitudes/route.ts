@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
     archivo2Nombre: archivo2Nombre ?? "",
     documentoUrl: "",
     documentoNombre: "",
+    documento2Url: "",
+    documento2Nombre: "",
     entregaToken: "",
   })
 
