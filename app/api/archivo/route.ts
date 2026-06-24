@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
+import { verificarToken } from "@/lib/auth"
 
 export async function GET(req: NextRequest) {
+  // Solo usuarios autenticados pueden descargar archivos
+  const token = req.cookies.get("dr-session")?.value
+  const sesion = token ? await verificarToken(token) : null
+  if (!sesion) {
+    return NextResponse.json({ error: "Acceso no autorizado" }, { status: 401 })
+  }
+
   const url = req.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "Falta url" }, { status: 400 })
 
   try {
-    const token = process.env.BLOB_READ_WRITE_TOKEN!
-    // Descargar el archivo desde Vercel Blob usando el token
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN!
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${blobToken}` },
     })
 
     if (!response.ok) {
