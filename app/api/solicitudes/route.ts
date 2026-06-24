@@ -4,7 +4,7 @@ import { getServicio, NIVEL_TIEMPO } from "@/lib/catalog"
 import { waLink, msgClienteRecibido } from "@/lib/whatsapp"
 
 export async function GET() {
-  return NextResponse.json(listarSolicitudes())
+  return NextResponse.json(await listarSolicitudes())
 }
 
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Servicio no válido" }, { status: 400 })
   }
 
-  const solicitud = crearSolicitud({
+  const solicitud = await crearSolicitud({
     clienteNombre,
     clienteWhatsapp,
     servicioId,
@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
     observaciones: "",
   })
 
-  // Devolvemos los links de WA para que el dashboard los abra con un clic
   const linkCliente = waLink(
     clienteWhatsapp,
     msgClienteRecibido({

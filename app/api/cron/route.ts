@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
-  const todas = listarSolicitudes()
+  const todas = await listarSolicitudes()
   const saulPhone = process.env.SAUL_WHATSAPP ?? ""
   const alertas: string[] = []
 

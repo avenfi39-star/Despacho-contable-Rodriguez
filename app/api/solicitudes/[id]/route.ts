@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { obtenerSolicitud, actualizarSolicitud } from "@/lib/db"
 import { NIVEL_LABEL } from "@/lib/catalog"
-import { waLink, msgTrabajadorAsignado, msgClienteListo } from "@/lib/whatsapp"
+import { waLink } from "@/lib/whatsapp"
 
 const TEAM_PHONES: Record<string, string> = {
   Beatriz:     process.env.WA_BEATRIZ     ?? "",
@@ -14,15 +14,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
   const { accion, asignadoA, observaciones } = body
-  const s = obtenerSolicitud(id)
+  const s = await obtenerSolicitud(id)
   if (!s) return NextResponse.json({ error: "No encontrada" }, { status: 404 })
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://despacho-contable-rodriguez.vercel.app"
 
-  // ── Asignar ────────────────────────────────────────────────────────────────
   if (accion === "asignar") {
     if (!asignadoA) return NextResponse.json({ error: "Falta asignadoA" }, { status: 400 })
-    const updated = actualizarSolicitud(id, { asignadoA, estado: "en_curso" })
+    const updated = await actualizarSolicitud(id, { asignadoA, estado: "en_curso" })
     const phone = TEAM_PHONES[asignadoA]
     const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
@@ -40,9 +39,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ ...updated, linkTrabajador })
   }
 
-  // ── Trabajador termina → va a revisión de Saúl ────────────────────────────
   if (accion === "terminar") {
-    const updated = actualizarSolicitud(id, { estado: "en_revision" })
+    const updated = await actualizarSolicitud(id, { estado: "en_revision" })
     const saulPhone = process.env.SAUL_WHATSAPP ?? ""
     const dashUrl = `${base}/dashboard`
     const msg =
@@ -57,9 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ ...updated, linkSaul })
   }
 
-  // ── Saúl aprueba → notifica al cliente ────────────────────────────────────
   if (accion === "aprobar") {
-    const updated = actualizarSolicitud(id, { estado: "listo" })
+    const updated = await actualizarSolicitud(id, { estado: "listo" })
     const msg =
       `✅ *Tu trámite está listo — Despacho Rodríguez*\n\n` +
       `Hola, tu solicitud ha sido completada y revisada:\n\n` +
@@ -70,10 +67,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ ...updated, linkCliente })
   }
 
-  // ── Saúl regresa con observaciones ────────────────────────────────────────
   if (accion === "regresar") {
     const nota = observaciones ?? "Revisar detalles."
-    const updated = actualizarSolicitud(id, { estado: "con_observaciones", observaciones: nota })
+    const updated = await actualizarSolicitud(id, { estado: "con_observaciones", observaciones: nota })
     const phone = TEAM_PHONES[s.asignadoA]
     const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
