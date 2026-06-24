@@ -1,4 +1,3 @@
-import { head } from "@vercel/blob"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
@@ -7,10 +6,26 @@ export async function GET(req: NextRequest) {
 
   try {
     const token = process.env.BLOB_READ_WRITE_TOKEN!
-    const info = await head(url, { token })
-    // Redirigir al downloadUrl temporal (expira en 1 hora)
-    return NextResponse.redirect(info.downloadUrl)
-  } catch {
-    return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 })
+    // Descargar el archivo desde Vercel Blob usando el token
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      return NextResponse.json({ error: "Archivo no encontrado" }, { status: 404 })
+    }
+
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream"
+    const body = await response.arrayBuffer()
+
+    return new NextResponse(body, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": "inline",
+      },
+    })
+  } catch (err) {
+    console.error("Error descargando archivo:", err)
+    return NextResponse.json({ error: "Error al acceder al archivo" }, { status: 500 })
   }
 }
