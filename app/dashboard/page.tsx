@@ -196,7 +196,7 @@ export default function Dashboard() {
           </div>
           <div>
             <div className="text-sm font-semibold text-slate-800">Despacho Contable Rodríguez</div>
-            <div className="text-xs text-slate-400">Panel de control · Saúl González</div>
+            <div className="text-xs text-slate-400">Panel de control · Saúl Rodríguez</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
