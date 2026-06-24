@@ -352,10 +352,14 @@ export default function Dashboard() {
                   const permitidos = EQUIPO_NOMBRES
                   return (
                     <div key={s.id} className={`px-5 py-4 flex items-center gap-4 border-b border-slate-50 last:border-b-0 ${ALERTA_BG[alerta]}`}>
-                      <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${NIVEL_DOT[s.nivel]}`} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-slate-800">{s.servicioNombre}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{s.clienteNombre} · #{String(s.folio).padStart(4,"0")} · hace {fmtTiempo(s.creadoEn)}</div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className="text-sm font-medium text-slate-800">{s.servicioNombre}</div>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${s.nivel === "red" ? "bg-red-100 text-red-600" : s.nivel === "amber" ? "bg-amber-100 text-amber-600" : "bg-green-100 text-green-600"}`}>
+                            {s.nivel === "red" ? "Alta" : s.nivel === "amber" ? "Media" : "Rápido"}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400">{s.clienteNombre} · #{String(s.folio).padStart(4,"0")} · hace {fmtTiempo(s.creadoEn)}</div>
                         <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
                     <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
                       </div>
