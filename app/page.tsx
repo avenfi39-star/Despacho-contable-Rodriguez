@@ -75,6 +75,13 @@ export default function Inicio() {
         <p className="text-center text-xs text-slate-300 mt-8">
           Despacho Contable Rodríguez · Sistema de gestión interno
         </p>
+        <p className="text-center text-[10px] text-slate-300 mt-2">
+          Designed &amp; developed by{" "}
+          <a href="https://www.vadigitalservices.com" target="_blank" rel="noopener noreferrer"
+            className="hover:text-slate-500 transition-colors">
+            VA Digital Services
+          </a>
+        </p>
       </div>
     </main>
   )
