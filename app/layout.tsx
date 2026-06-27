@@ -27,7 +27,16 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <footer className="py-3 text-center text-[10px] text-slate-300">
+          Designed &amp; developed by{" "}
+          <a href="https://www.vadigitalservices.com" target="_blank" rel="noopener noreferrer"
+            className="hover:text-slate-500 transition-colors">
+            VA Digital Services
+          </a>
+        </footer>
+      </body>
     </html>
   );
 }
