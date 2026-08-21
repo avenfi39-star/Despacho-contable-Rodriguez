@@ -72,6 +72,9 @@ export default function Dashboard() {
   const [servicios, setServicios]       = useState<ServicioDB[]>([])
   const [nuevoSvc, setNuevoSvc]         = useState({ nombre: "", categoria: "", nivel: "green" as ServicioDB["nivel"], diasHabiles: 1 })
   const [guardandoSvc, setGuardandoSvc] = useState(false)
+  const [editandoSvc, setEditandoSvc]   = useState<string | null>(null)
+  const [svcDraft, setSvcDraft]         = useState({ nombre: "", categoria: "", nivel: "green" as ServicioDB["nivel"], diasHabiles: 1 })
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [editWA, setEditWA]             = useState<Record<string, string>>({})
   const [guardandoColab, setGuardandoColab] = useState<string | null>(null)
@@ -594,19 +597,65 @@ export default function Dashboard() {
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{cat}</span>
                 </div>
                 {servicios.filter(s => s.categoria === cat).map(s => (
-                  <div key={s.id} className={`flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0 ${!s.activo ? "opacity-40" : ""}`}>
-                    <span className="text-base">{s.nivel === "red" ? "🔴" : s.nivel === "amber" ? "🟡" : "🟢"}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-slate-800">{s.nombre}</div>
-                      <div className="text-xs text-slate-400">{s.diasHabiles === 0 ? "mismo día" : `${s.diasHabiles} día${s.diasHabiles !== 1 ? "s" : ""} hábil${s.diasHabiles !== 1 ? "es" : ""}`}</div>
+                  editandoSvc === s.id ? (
+                    <div key={s.id} className="px-5 py-4 border-b border-slate-50 last:border-0 bg-blue-50/40">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input value={svcDraft.nombre} onChange={e => setSvcDraft(p => ({ ...p, nombre: e.target.value }))}
+                          placeholder="Nombre del servicio"
+                          className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                        <input value={svcDraft.categoria} onChange={e => setSvcDraft(p => ({ ...p, categoria: e.target.value }))}
+                          placeholder="Categoría"
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                        <select value={svcDraft.nivel} onChange={e => setSvcDraft(p => ({ ...p, nivel: e.target.value as ServicioDB["nivel"] }))}
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400">
+                          <option value="green">🟢 Trámite rápido</option>
+                          <option value="amber">🟡 Complejidad media</option>
+                          <option value="red">🔴 Alta complejidad</option>
+                        </select>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-slate-500 whitespace-nowrap">Días hábiles:</label>
+                          <input type="number" min={0} max={30} value={svcDraft.diasHabiles}
+                            onChange={e => setSvcDraft(p => ({ ...p, diasHabiles: Number(e.target.value) }))}
+                            className="w-20 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400" />
+                        </div>
+                        <div className="col-span-2 flex justify-end gap-2 mt-1">
+                          <button onClick={() => setEditandoSvc(null)}
+                            className="text-xs rounded-lg px-3 py-1.5 border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                            Cancelar
+                          </button>
+                          <button disabled={guardandoEdit || !svcDraft.nombre || !svcDraft.categoria}
+                            onClick={async () => {
+                              setGuardandoEdit(true)
+                              await fetch(`/api/servicios/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(svcDraft) })
+                              await cargarServicios()
+                              setEditandoSvc(null)
+                              setGuardandoEdit(false)
+                            }}
+                            className="text-xs bg-blue-600 text-white rounded-lg px-4 py-1.5 hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                            {guardandoEdit ? "Guardando…" : "Guardar"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <button onClick={async () => {
-                      await fetch(`/api/servicios/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo: !s.activo }) })
-                      cargarServicios()
-                    }} className={`text-xs rounded-lg px-3 py-1.5 border transition-colors ${s.activo ? "border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500" : "border-green-200 text-green-600 hover:bg-green-50"}`}>
-                      {s.activo ? "Desactivar" : "Activar"}
-                    </button>
-                  </div>
+                  ) : (
+                    <div key={s.id} className={`flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0 ${!s.activo ? "opacity-40" : ""}`}>
+                      <span className="text-base">{s.nivel === "red" ? "🔴" : s.nivel === "amber" ? "🟡" : "🟢"}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-slate-800">{s.nombre}</div>
+                        <div className="text-xs text-slate-400">{s.diasHabiles === 0 ? "mismo día" : `${s.diasHabiles} día${s.diasHabiles !== 1 ? "s" : ""} hábil${s.diasHabiles !== 1 ? "es" : ""}`}</div>
+                      </div>
+                      <button onClick={() => { setEditandoSvc(s.id); setSvcDraft({ nombre: s.nombre, categoria: s.categoria, nivel: s.nivel, diasHabiles: s.diasHabiles }) }}
+                        className="text-xs rounded-lg px-3 py-1.5 border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                        Editar
+                      </button>
+                      <button onClick={async () => {
+                        await fetch(`/api/servicios/${s.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo: !s.activo }) })
+                        cargarServicios()
+                      }} className={`text-xs rounded-lg px-3 py-1.5 border transition-colors ${s.activo ? "border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500" : "border-green-200 text-green-600 hover:bg-green-50"}`}>
+                        {s.activo ? "Desactivar" : "Activar"}
+                      </button>
+                    </div>
+                  )
                 ))}
               </div>
             ))}
