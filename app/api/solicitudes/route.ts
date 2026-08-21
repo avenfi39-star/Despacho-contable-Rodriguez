@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { crearSolicitud, listarSolicitudes } from "@/lib/db"
+import { crearSolicitud, listarSolicitudes, getTelefonoSaul } from "@/lib/db"
 import { getServicio, NIVEL_TIEMPO } from "@/lib/catalog"
-import { waLink, msgClienteRecibido } from "@/lib/whatsapp"
+import { waLink, msgClienteRecibido, normalizarTelMx } from "@/lib/whatsapp"
 
 export async function GET() {
   return NextResponse.json(await listarSolicitudes())
@@ -20,9 +20,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Servicio no válido" }, { status: 400 })
   }
 
+  // Blindaje: normalizamos el número aquí para que no importe cómo lo escriba el cliente.
+  const telCliente = normalizarTelMx(clienteWhatsapp)
+  if (telCliente.length !== 12) {
+    return NextResponse.json({ error: "Número de WhatsApp no válido" }, { status: 400 })
+  }
+
   const solicitud = await crearSolicitud({
     clienteNombre,
-    clienteWhatsapp,
+    clienteWhatsapp: telCliente,
     servicioId,
     servicioNombre: servicio.nombre,
     nivel: servicio.nivel,
@@ -41,7 +47,7 @@ export async function POST(req: NextRequest) {
   })
 
   const linkCliente = waLink(
-    clienteWhatsapp,
+    telCliente,
     msgClienteRecibido({
       folio: solicitud.folio,
       servicio: servicio.nombre,
@@ -49,7 +55,7 @@ export async function POST(req: NextRequest) {
     })
   )
 
-  const saulWA = process.env.SAUL_WHATSAPP ?? ""
+  const saulWA = await getTelefonoSaul()
   const linkSaul = saulWA
     ? waLink(saulWA, `📥 *Nueva solicitud recibida*\n\nCliente: *${clienteNombre}*\nServicio: *${servicio.nombre}*\nFolio: *#${String(solicitud.folio).padStart(4, "0")}*\n\nEntra al dashboard para asignarla.`)
     : null

@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { obtenerSolicitud, actualizarSolicitud } from "@/lib/db"
+import { obtenerSolicitud, actualizarSolicitud, getTelefono, getTelefonoSaul } from "@/lib/db"
 import { NIVEL_LABEL } from "@/lib/catalog"
 import { waLink } from "@/lib/whatsapp"
-
-const TEAM_PHONES: Record<string, string> = {
-  Beatriz:     process.env.WA_BEATRIZ     ?? "",
-  Trabajador:  process.env.WA_TRABAJADOR  ?? "",
-  "Ana Karen": process.env.WA_ANAKAREN   ?? "",
-  Santiago:    process.env.WA_SANTIAGO    ?? "",
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,7 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (accion === "asignar") {
     if (!asignadoA) return NextResponse.json({ error: "Falta asignadoA" }, { status: 400 })
     const updated = await actualizarSolicitud(id, { asignadoA, estado: "en_curso" })
-    const phone = TEAM_PHONES[asignadoA]
+    const phone = await getTelefono(asignadoA)
     const msg =
       `📌 *Nueva tarea asignada — Despacho Rodríguez*\n\n` +
       `Hola *${asignadoA}*, tienes una solicitud nueva:\n\n` +
@@ -39,8 +32,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (accion === "terminar") {
-    const updated = await actualizarSolicitud(id, { estado: "en_revision" })
-    const saulPhone = process.env.SAUL_WHATSAPP ?? ""
+    const { documentoUrl, documentoNombre, documento2Url, documento2Nombre } = body
+    const patch: Record<string, string> = { estado: "en_revision" }
+    if (documentoUrl)  { patch.documentoUrl = documentoUrl; patch.documentoNombre = documentoNombre ?? "" }
+    if (documento2Url) { patch.documento2Url = documento2Url; patch.documento2Nombre = documento2Nombre ?? "" }
+    const updated = await actualizarSolicitud(id, patch)
+    const saulPhone = await getTelefonoSaul()
     const dashUrl = `${base}/dashboard`
     const msg =
       `✅ *Solicitud lista para revisión*\n\n` +
@@ -83,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (accion === "regresar") {
     const nota = observaciones ?? "Revisar detalles."
     const updated = await actualizarSolicitud(id, { estado: "con_observaciones", observaciones: nota })
-    const phone = TEAM_PHONES[s.asignadoA]
+    const phone = await getTelefono(s.asignadoA)
     const msg =
       `🔄 *Solicitud con observaciones — Despacho Rodríguez*\n\n` +
       `Hola *${s.asignadoA}*, Saúl revisó la solicitud y tiene observaciones:\n\n` +

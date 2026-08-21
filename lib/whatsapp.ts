@@ -5,6 +5,20 @@ export function waLink(phone: string, message: string): string {
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(message)}`
 }
 
+// Normaliza un número mexicano a formato WhatsApp: 52 + 10 dígitos locales.
+// Acepta lo que sea que escriba el cliente y evita duplicar la lada:
+//   "667 123 4567", "+52 667 123 4567", "52 667...", "044 667...", "+521 667..."
+// todos terminan como "526671234567".
+export function normalizarTelMx(input: string): string {
+  let d = (input ?? "").replace(/\D/g, "")
+  if (d.startsWith("00")) d = d.slice(2)                              // salida internacional (00…)
+  if (d.startsWith("044") || d.startsWith("045")) d = d.slice(3)      // celular nacional (formato viejo)
+  if (d.length > 10 && d.startsWith("521")) d = d.slice(3)            // lada país + '1' de móvil
+  else if (d.length > 10 && d.startsWith("52")) d = d.slice(2)        // lada país
+  if (d.length > 10) d = d.slice(-10)                                 // por seguridad, últimos 10
+  return "52" + d
+}
+
 // ─── Plantillas de mensajes ───────────────────────────────────────────────────
 
 export function msgClienteRecibido(params: {

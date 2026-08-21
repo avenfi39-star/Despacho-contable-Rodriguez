@@ -97,6 +97,98 @@ export async function actualizarServicio(id: string, patch: Partial<ServicioDB>)
   if (patch.diasHabiles !== undefined) await db`UPDATE servicios SET dias_habiles=${patch.diasHabiles} WHERE id=${id}`
 }
 
+// ─── Colaboradores (equipo) ───────────────────────────────────────────────────
+
+export type ColaboradorRol = "saul" | "colaborador"
+
+export interface Colaborador {
+  id: string
+  nombre: string
+  whatsapp: string
+  rol: ColaboradorRol
+  activo: boolean
+}
+
+async function inicializarColaboradores() {
+  const db = sql()
+  await db`
+    CREATE TABLE IF NOT EXISTS colaboradores (
+      id TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      whatsapp TEXT NOT NULL DEFAULT '',
+      rol TEXT NOT NULL DEFAULT 'colaborador',
+      activo BOOLEAN NOT NULL DEFAULT TRUE
+    )
+  `
+  const { EQUIPO } = await import("./catalog")
+  const existing = await db`SELECT nombre FROM colaboradores`
+  const existingNombres = new Set(existing.map((r) => r.nombre as string))
+  // Semilla: cada integrante del EQUIPO + Saúl. Los números empiezan vacíos.
+  const semilla: { nombre: string; rol: ColaboradorRol }[] = [
+    { nombre: "Saúl", rol: "saul" },
+    ...EQUIPO.map((e) => ({ nombre: e.nombre, rol: "colaborador" as ColaboradorRol })),
+  ]
+  for (const c of semilla) {
+    if (!existingNombres.has(c.nombre)) {
+      const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+      await db`INSERT INTO colaboradores (id, nombre, whatsapp, rol, activo)
+               VALUES (${id}, ${c.nombre}, '', ${c.rol}, TRUE)`
+    }
+  }
+}
+
+function rowToColaborador(r: Record<string, unknown>): Colaborador {
+  return {
+    id: r.id as string,
+    nombre: r.nombre as string,
+    whatsapp: (r.whatsapp as string) ?? "",
+    rol: r.rol as ColaboradorRol,
+    activo: r.activo as boolean,
+  }
+}
+
+export async function listarColaboradores(soloActivos = false): Promise<Colaborador[]> {
+  await inicializarColaboradores()
+  const db = sql()
+  const rows = soloActivos
+    ? await db`SELECT * FROM colaboradores WHERE activo = TRUE ORDER BY rol DESC, nombre`
+    : await db`SELECT * FROM colaboradores ORDER BY rol DESC, nombre`
+  return rows.map(rowToColaborador)
+}
+
+export async function crearColaborador(data: { nombre: string; whatsapp?: string }): Promise<Colaborador> {
+  await inicializarColaboradores()
+  const db = sql()
+  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12)
+  const rows = await db`INSERT INTO colaboradores (id, nombre, whatsapp, rol, activo)
+    VALUES (${id}, ${data.nombre}, ${data.whatsapp ?? ""}, 'colaborador', TRUE) RETURNING *`
+  return rowToColaborador(rows[0])
+}
+
+export async function actualizarColaborador(id: string, patch: Partial<Pick<Colaborador, "nombre" | "whatsapp" | "activo">>): Promise<void> {
+  await inicializarColaboradores()
+  const db = sql()
+  if (patch.nombre !== undefined)   await db`UPDATE colaboradores SET nombre=${patch.nombre} WHERE id=${id}`
+  if (patch.whatsapp !== undefined) await db`UPDATE colaboradores SET whatsapp=${patch.whatsapp} WHERE id=${id}`
+  if (patch.activo !== undefined)   await db`UPDATE colaboradores SET activo=${patch.activo} WHERE id=${id}`
+}
+
+// Devuelve el WhatsApp de un colaborador por su nombre (o "" si no tiene/existe).
+export async function getTelefono(nombre: string): Promise<string> {
+  await inicializarColaboradores()
+  const db = sql()
+  const rows = await db`SELECT whatsapp FROM colaboradores WHERE nombre=${nombre} LIMIT 1`
+  return rows[0] ? ((rows[0].whatsapp as string) ?? "") : ""
+}
+
+// Devuelve el WhatsApp de Saúl (el colaborador con rol 'saul').
+export async function getTelefonoSaul(): Promise<string> {
+  await inicializarColaboradores()
+  const db = sql()
+  const rows = await db`SELECT whatsapp FROM colaboradores WHERE rol='saul' ORDER BY nombre LIMIT 1`
+  return rows[0] ? ((rows[0].whatsapp as string) ?? "") : ""
+}
+
 async function inicializar() {
   const db = sql()
   await db`

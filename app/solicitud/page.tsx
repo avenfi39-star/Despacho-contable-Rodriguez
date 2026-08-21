@@ -49,8 +49,7 @@ export default function FormularioCliente() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
-          clienteWhatsapp: "52" + form.clienteWhatsapp.replace(/\D/g, ""),
+          ...form, // clienteWhatsapp va tal cual; el servidor lo normaliza (blindaje)
           archivoUrl: u1?.url ?? "", archivoNombre: u1?.nombre ?? "",
           archivo2Url: u2?.url ?? "", archivo2Nombre: u2?.nombre ?? "",
         }),

@@ -1,21 +1,21 @@
 "use client"
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import type { ServicioDB, Solicitud } from "@/lib/db"
-import { EQUIPO, NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
-
-const TEAM_PHONES: Record<string, string> = {
-  "Beatriz":    "526671399418",
-  "Trabajador": "526671399418",
-  "Ana Karen":  "526671399418",
-  "Santiago":   "526671399418",
-}
-const SAUL_PHONE = "526671399418"
+import type { ServicioDB, Solicitud, Colaborador } from "@/lib/db"
+import { NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
 
 function waLink(phone: string, msg: string) {
   return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
 }
 function abrirWA(phone: string, msg: string) { window.open(waLink(phone, msg), "_blank") }
+
+// Muestra un número guardado (526671234567) como "+52 667 123 4567".
+function fmtTel(raw: string) {
+  const d = (raw ?? "").replace(/\D/g, "")
+  const local = d.length > 10 && d.startsWith("52") ? d.slice(-10) : d
+  if (local.length === 10) return `+52 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`
+  return raw || "—"
+}
 
 function horasDesde(iso: string) { return (Date.now() - new Date(iso).getTime()) / 36e5 }
 function fmtTiempo(iso: string) {
@@ -43,8 +43,6 @@ const NIVEL_BADGE: Record<string, string> = { red: "bg-red-50 text-red-700", amb
 const ALERTA_BG:   Record<Alerta, string> = { ok: "", advertencia: "bg-amber-50", vencida: "bg-red-50" }
 const ALERTA_TAG:  Record<Alerta, string> = { ok: "", advertencia: "bg-amber-100 text-amber-700", vencida: "bg-red-100 text-red-700" }
 
-const EQUIPO_NOMBRES = EQUIPO.map((e) => e.nombre)
-
 function ArchivoLink({ url, nombre }: { url: string; nombre: string }) {
   if (!url) return null
   const ext = nombre.split(".").pop()?.toLowerCase() ?? ""
@@ -70,10 +68,18 @@ export default function Dashboard() {
   const [docEntrega, setDocEntrega]     = useState<Record<string, { url: string; nombre: string; url2: string; nombre2: string }>>({})
   const [subiendoDoc, setSubiendoDoc]   = useState<string | null>(null)
   const [regresando, setRegresando]     = useState<string | null>(null)
-  const [vista, setVista]               = useState<"equipo" | "lista" | "servicios">("equipo")
+  const [vista, setVista]               = useState<"equipo" | "lista" | "servicios" | "colaboradores">("equipo")
   const [servicios, setServicios]       = useState<ServicioDB[]>([])
   const [nuevoSvc, setNuevoSvc]         = useState({ nombre: "", categoria: "", nivel: "green" as ServicioDB["nivel"], diasHabiles: 1 })
   const [guardandoSvc, setGuardandoSvc] = useState(false)
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
+  const [editWA, setEditWA]             = useState<Record<string, string>>({})
+  const [guardandoColab, setGuardandoColab] = useState<string | null>(null)
+  const [nuevoColab, setNuevoColab]     = useState("")
+
+  // Derivados del equipo: mapa de teléfonos por nombre y lista de nombres asignables.
+  const teamPhones: Record<string, string> = Object.fromEntries(colaboradores.map((c) => [c.nombre, c.whatsapp]))
+  const nombresEquipo = colaboradores.filter((c) => c.rol === "colaborador" && c.activo).map((c) => c.nombre)
 
   const cargar = useCallback(async () => {
     const r = await fetch("/api/solicitudes")
@@ -86,15 +92,21 @@ export default function Dashboard() {
     setServicios(await r.json())
   }, [])
 
+  const cargarColaboradores = useCallback(async () => {
+    const r = await fetch("/api/colaboradores")
+    setColaboradores(await r.json())
+  }, [])
+
   useEffect(() => { cargar(); const t = setInterval(cargar, 30000); return () => clearInterval(t) }, [cargar])
   useEffect(() => { cargarServicios() }, [cargarServicios])
+  useEffect(() => { cargarColaboradores() }, [cargarColaboradores])
 
   // ── Acciones ──────────────────────────────────────────────────────────────
 
   function handleAsignar(s: Solicitud) {
     const persona = asignando[s.id]
     if (!persona) return
-    const phone = TEAM_PHONES[persona]
+    const phone = teamPhones[persona]
     const base = window.location.origin
     const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
@@ -145,7 +157,7 @@ export default function Dashboard() {
   function handleRegresar(s: Solicitud) {
     const nota = observacion[s.id]?.trim()
     if (!nota) return
-    const phone = TEAM_PHONES[s.asignadoA]
+    const phone = teamPhones[s.asignadoA]
     const base = window.location.origin
     const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
     const msg =
@@ -165,7 +177,7 @@ export default function Dashboard() {
   }
 
   function handleRecordar(s: Solicitud) {
-    const phone = TEAM_PHONES[s.asignadoA]
+    const phone = teamPhones[s.asignadoA]
     if (!phone) return
     const base = window.location.origin
     const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
@@ -207,6 +219,7 @@ export default function Dashboard() {
             <button onClick={() => setVista("equipo")}    className={`px-3 py-1.5 transition-colors ${vista === "equipo"    ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Por persona</button>
             <button onClick={() => setVista("lista")}     className={`px-3 py-1.5 transition-colors ${vista === "lista"     ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Lista</button>
             <button onClick={() => setVista("servicios")} className={`px-3 py-1.5 transition-colors ${vista === "servicios" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Servicios</button>
+            <button onClick={() => setVista("colaboradores")} className={`px-3 py-1.5 transition-colors ${vista === "colaboradores" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Equipo</button>
           </div>
           <button onClick={cargar} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -349,7 +362,7 @@ export default function Dashboard() {
                 </div>
                 {pendientes.map((s) => {
                   const alerta = nivelAlerta(s)
-                  const permitidos = EQUIPO_NOMBRES
+                  const permitidos = nombresEquipo
                   return (
                     <div key={s.id} className={`px-5 py-4 flex items-center gap-4 border-b border-slate-50 last:border-b-0 ${ALERTA_BG[alerta]}`}>
                       <div className="flex-1 min-w-0">
@@ -381,7 +394,7 @@ export default function Dashboard() {
 
             {/* Tarjetas por persona */}
             <div className="grid grid-cols-2 gap-4">
-              {EQUIPO_NOMBRES.map((nombre) => {
+              {nombresEquipo.map((nombre) => {
                 const activas    = enCurso.filter((s) => s.asignadoA === nombre)
                 const terminadas = listos.filter((s) => s.asignadoA === nombre)
                 const conAlerta  = activas.filter((s) => nivelAlerta(s) !== "ok")
@@ -461,7 +474,7 @@ export default function Dashboard() {
             {solicitudes.length === 0 && <div className="py-12 text-center text-sm text-slate-400">No hay solicitudes aún.</div>}
             {solicitudes.map((s) => {
               const alerta    = nivelAlerta(s)
-              const permitidos = EQUIPO_NOMBRES ?? EQUIPO_NOMBRES
+              const permitidos = nombresEquipo
               const ESTADO_LABEL: Record<string, string> = {
                 pendiente: "Nueva", en_curso: "En curso", en_revision: "En revisión",
                 con_observaciones: "Con obs.", listo: "✓ Lista",
@@ -471,57 +484,64 @@ export default function Dashboard() {
                 en_revision: "bg-purple-50 text-purple-700", con_observaciones: "bg-amber-50 text-amber-700",
                 listo: "bg-green-50 text-green-700",
               }
+              const tieneArchivos = s.archivoUrl || s.archivo2Url
               return (
-                <div key={s.id} className={`grid grid-cols-[2fr_1.3fr_80px_120px_120px_160px] gap-3 px-5 py-4 border-b border-slate-50 items-center last:border-b-0 ${ALERTA_BG[alerta]}`}>
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${NIVEL_DOT[s.nivel]}`} />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-slate-800 truncate">{s.servicioNombre}</div>
-                      <div className="text-xs text-slate-400">#{String(s.folio).padStart(4,"0")} · {fmtTiempo(s.creadoEn)}</div>
-                      <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
-                    <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
+                <div key={s.id} className={`border-b border-slate-50 last:border-b-0 ${ALERTA_BG[alerta]}`}>
+                  <div className="grid grid-cols-[2fr_1.3fr_80px_120px_120px_160px] gap-3 px-5 py-4 items-center">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${NIVEL_DOT[s.nivel]}`} />
+                      <div className="min-w-0 leading-tight">
+                        <div className="text-sm font-medium text-slate-800 truncate">{s.servicioNombre}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">#{String(s.folio).padStart(4,"0")} · {fmtTiempo(s.creadoEn)}</div>
+                      </div>
+                    </div>
+                    <div className="min-w-0 leading-tight">
+                      <div className="text-sm text-slate-700 truncate">{s.clienteNombre}</div>
+                      <div className="text-xs text-slate-400 mt-0.5 truncate">{fmtTel(s.clienteWhatsapp)}</div>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full w-fit ${NIVEL_BADGE[s.nivel]}`}>
+                      {s.nivel === "red" ? "Alta" : s.nivel === "amber" ? "Media" : "Rápido"}
+                    </span>
+                    {s.estado === "pendiente" ? (
+                      <select value={asignando[s.id] ?? ""} onChange={(e) => setAsignando({ ...asignando, [s.id]: e.target.value })}
+                        className="text-sm border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none w-full">
+                        <option value="">— Asignar —</option>
+                        {permitidos.map((p) => <option key={p}>{p}</option>)}
+                      </select>
+                    ) : (
+                      <span className="text-sm text-slate-700 font-medium truncate">{s.asignadoA || "—"}</span>
+                    )}
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full w-fit ${ESTADO_COLOR[s.estado]}`}>
+                      {ESTADO_LABEL[s.estado]}
+                    </span>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {s.estado === "pendiente" && (
+                        <button onClick={() => handleAsignar(s)} disabled={!asignando[s.id] || accionando === s.id}
+                          className="text-xs bg-blue-600 text-white rounded-xl px-3 py-1.5 hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                          {accionando === s.id ? "..." : "Asignar + WA"}
+                        </button>
+                      )}
+                      {s.estado === "en_revision" && (
+                        <>
+                          <button onClick={() => handleAprobar(s)} disabled={accionando === s.id}
+                            className="text-xs bg-green-600 text-white rounded-xl px-2.5 py-1.5 hover:bg-green-700 disabled:opacity-40 transition-colors">
+                            ✓ Aprobar
+                          </button>
+                          <button onClick={() => setRegresando(regresando === s.id ? null : s.id)}
+                            className="text-xs border border-amber-300 text-amber-700 rounded-xl px-2.5 py-1.5 hover:bg-amber-50 transition-colors">
+                            ↩ Obs.
+                          </button>
+                        </>
+                      )}
+                      {s.estado === "listo" && <span className="text-xs text-slate-300">—</span>}
                     </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-sm text-slate-700 truncate">{s.clienteNombre}</div>
-                    <div className="text-xs text-slate-400">{s.clienteWhatsapp}</div>
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full w-fit ${NIVEL_BADGE[s.nivel]}`}>
-                    {s.nivel === "red" ? "Alta" : s.nivel === "amber" ? "Media" : "Rápido"}
-                  </span>
-                  {s.estado === "pendiente" ? (
-                    <select value={asignando[s.id] ?? ""} onChange={(e) => setAsignando({ ...asignando, [s.id]: e.target.value })}
-                      className="text-sm border border-slate-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none w-full">
-                      <option value="">— Asignar —</option>
-                      {permitidos.map((p) => <option key={p}>{p}</option>)}
-                    </select>
-                  ) : (
-                    <span className="text-sm text-slate-700 font-medium">{s.asignadoA || "—"}</span>
+                  {tieneArchivos && (
+                    <div className="flex flex-wrap gap-2 px-5 pb-3 pl-12">
+                      <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
+                      <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
+                    </div>
                   )}
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full w-fit ${ESTADO_COLOR[s.estado]}`}>
-                    {ESTADO_LABEL[s.estado]}
-                  </span>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {s.estado === "pendiente" && (
-                      <button onClick={() => handleAsignar(s)} disabled={!asignando[s.id] || accionando === s.id}
-                        className="text-xs bg-blue-600 text-white rounded-xl px-3 py-1.5 hover:bg-blue-700 disabled:opacity-40 transition-colors">
-                        {accionando === s.id ? "..." : "Asignar + WA"}
-                      </button>
-                    )}
-                    {s.estado === "en_revision" && (
-                      <>
-                        <button onClick={() => handleAprobar(s)} disabled={accionando === s.id}
-                          className="text-xs bg-green-600 text-white rounded-xl px-2.5 py-1.5 hover:bg-green-700 disabled:opacity-40 transition-colors">
-                          ✓ Aprobar
-                        </button>
-                        <button onClick={() => setRegresando(regresando === s.id ? null : s.id)}
-                          className="text-xs border border-amber-300 text-amber-700 rounded-xl px-2.5 py-1.5 hover:bg-amber-50 transition-colors">
-                          ↩ Obs.
-                        </button>
-                      </>
-                    )}
-                    {s.estado === "listo" && <span className="text-xs text-slate-300">—</span>}
-                  </div>
                 </div>
               )
             })}
@@ -590,6 +610,79 @@ export default function Dashboard() {
                 ))}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Vista Colaboradores (equipo) ──────────────────────────────────── */}
+        {vista === "colaboradores" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="text-sm font-semibold text-slate-700 mb-1">Números de WhatsApp del equipo</h2>
+              <p className="text-xs text-slate-400 mb-5">A estos números llegan los avisos de asignación y recordatorios. Escríbelos con lada (ej. 667 123 4567) y presiona Guardar.</p>
+              <div className="space-y-2">
+                {colaboradores.map((c) => {
+                  const initials = c.nombre.split(" ").map((n) => n[0]).join("").slice(0, 2)
+                  const actual = editWA[c.id] ?? c.whatsapp
+                  const cambiado = actual.trim() !== c.whatsapp
+                  return (
+                    <div key={c.id} className={`flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5 ${!c.activo ? "opacity-45" : ""}`}>
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${c.rol === "saul" ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700"}`}>{initials}</div>
+                      <div className="w-24 flex-shrink-0 min-w-0">
+                        <div className="text-sm font-medium text-slate-800 truncate">{c.nombre}</div>
+                        <div className="text-[11px] text-slate-400">{c.rol === "saul" ? "Administrador" : "Colaborador"}</div>
+                      </div>
+                      <div className="relative flex-1 min-w-0">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">+52</span>
+                        <input value={actual} onChange={(e) => setEditWA((p) => ({ ...p, [c.id]: e.target.value }))}
+                          placeholder="Sin número — agrégalo aquí"
+                          className="w-full border border-slate-200 rounded-lg pl-10 pr-3 py-1.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
+                      </div>
+                      <button disabled={!cambiado || guardandoColab === c.id}
+                        onClick={async () => {
+                          setGuardandoColab(c.id)
+                          await fetch(`/api/colaboradores/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ whatsapp: actual.trim() }) })
+                          await cargarColaboradores()
+                          setEditWA((p) => { const n = { ...p }; delete n[c.id]; return n })
+                          setGuardandoColab(null)
+                        }}
+                        className="text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 disabled:opacity-30 transition-colors flex-shrink-0">
+                        {guardandoColab === c.id ? "…" : "Guardar"}
+                      </button>
+                      {c.rol !== "saul" && (
+                        <button onClick={async () => {
+                          await fetch(`/api/colaboradores/${c.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activo: !c.activo }) })
+                          cargarColaboradores()
+                        }} className={`text-xs rounded-lg px-2.5 py-1.5 border transition-colors flex-shrink-0 ${c.activo ? "border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500" : "border-green-200 text-green-600 hover:bg-green-50"}`}>
+                          {c.activo ? "Quitar" : "Activar"}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Agregar colaborador */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="text-sm font-semibold text-slate-700 mb-3">Agregar colaborador</h2>
+              <div className="flex gap-2">
+                <input value={nuevoColab} onChange={(e) => setNuevoColab(e.target.value)}
+                  placeholder="Nombre del colaborador (ej. Laura)"
+                  className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
+                <button disabled={!nuevoColab.trim() || guardandoColab === "nuevo"}
+                  onClick={async () => {
+                    setGuardandoColab("nuevo")
+                    await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: nuevoColab.trim() }) })
+                    setNuevoColab("")
+                    await cargarColaboradores()
+                    setGuardandoColab(null)
+                  }}
+                  className="bg-blue-600 text-white rounded-xl px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0">
+                  {guardandoColab === "nuevo" ? "Guardando…" : "+ Agregar"}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-2">Aparecerá en la lista de arriba para ponerle su número, y podrás asignarle solicitudes de inmediato. Para sacarlo del equipo usa &quot;Quitar&quot; (no se borra su historial).</p>
+            </div>
           </div>
         )}
       </div>

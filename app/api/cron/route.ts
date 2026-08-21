@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { listarSolicitudes } from "@/lib/db"
+import { listarSolicitudes, getTelefonoSaul } from "@/lib/db"
 import { ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
 
 // Este endpoint es llamado por Vercel Cron cada hora.
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const todas = await listarSolicitudes()
-  const saulPhone = process.env.SAUL_WHATSAPP ?? ""
+  const saulPhone = await getTelefonoSaul()
   const alertas: string[] = []
 
   for (const s of todas) {
