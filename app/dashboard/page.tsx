@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [usuarios, setUsuarios]         = useState<{ usuario: string; nombre: string; rol: string; activo: boolean }[]>([])
   const [resetPw, setResetPw]           = useState<Record<string, string>>({})
   const [reseteando, setReseteando]     = useState<string | null>(null)
+  const [refrescando, setRefrescando]   = useState(false)
 
   // Derivados del equipo: mapa de teléfonos por nombre y lista de nombres asignables.
   const teamPhones: Record<string, string> = Object.fromEntries(colaboradores.map((c) => [c.nombre, c.whatsapp]))
@@ -110,6 +111,15 @@ export default function Dashboard() {
     const r = await fetch("/api/usuarios")
     if (r.ok) setUsuarios(await r.json())
   }, [])
+
+  const refrescarTodo = useCallback(async () => {
+    setRefrescando(true)
+    try {
+      await Promise.all([cargar(), cargarServicios(), cargarColaboradores(), cargarUsuarios()])
+    } finally {
+      setRefrescando(false)
+    }
+  }, [cargar, cargarServicios, cargarColaboradores, cargarUsuarios])
 
   useEffect(() => { cargar(); const t = setInterval(cargar, 30000); return () => clearInterval(t) }, [cargar])
   useEffect(() => { cargarServicios() }, [cargarServicios])
@@ -206,6 +216,14 @@ export default function Dashboard() {
     )
   }
 
+  async function handleBorrar(s: Solicitud) {
+    if (!confirm(`¿Borrar la solicitud #${String(s.folio).padStart(4, "0")} de ${s.clienteNombre}?\n\nEsta acción no se puede deshacer.`)) return
+    setAccionando(s.id)
+    await fetch(`/api/solicitudes/${s.id}`, { method: "DELETE" })
+    await cargar()
+    setAccionando(null)
+  }
+
   // ── Datos filtrados ────────────────────────────────────────────────────────
   const pendientes    = solicitudes.filter((s) => s.estado === "pendiente")
   const enRevision    = solicitudes.filter((s) => s.estado === "en_revision")
@@ -236,9 +254,10 @@ export default function Dashboard() {
             <button onClick={() => setVista("servicios")} className={`px-3 py-1.5 transition-colors ${vista === "servicios" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Servicios</button>
             <button onClick={() => setVista("colaboradores")} className={`px-3 py-1.5 transition-colors ${vista === "colaboradores" ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}>Equipo</button>
           </div>
-          <button onClick={cargar} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            Actualizar
+          <button onClick={refrescarTodo} disabled={refrescando}
+            className="text-xs text-blue-600 hover:underline flex items-center gap-1 disabled:opacity-60 disabled:no-underline">
+            <svg className={`w-3.5 h-3.5 ${refrescando ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            {refrescando ? "Actualizando…" : "Actualizar"}
           </button>
           <CambiarPassword />
           <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/") }}
@@ -549,7 +568,10 @@ export default function Dashboard() {
                           </button>
                         </>
                       )}
-                      {s.estado === "listo" && <span className="text-xs text-slate-300">—</span>}
+                      <button onClick={() => handleBorrar(s)} disabled={accionando === s.id} title="Borrar solicitud"
+                        className="text-xs border border-slate-200 text-slate-400 rounded-xl px-2 py-1.5 hover:border-red-200 hover:text-red-500 disabled:opacity-40 transition-colors">
+                        🗑
+                      </button>
                     </div>
                   </div>
                   {tieneArchivos && (

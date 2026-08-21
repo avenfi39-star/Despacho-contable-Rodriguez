@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
-import { obtenerSolicitud, actualizarSolicitud, getTelefono, getTelefonoSaul } from "@/lib/db"
+import { obtenerSolicitud, actualizarSolicitud, eliminarSolicitud, getTelefono, getTelefonoSaul } from "@/lib/db"
 import { NIVEL_LABEL } from "@/lib/catalog"
 import { waLink } from "@/lib/whatsapp"
+import { verificarToken } from "@/lib/auth"
+
+// Borrar una solicitud. Solo Saúl (desde el panel de control).
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const token = req.cookies.get("dr-session")?.value
+  const sesion = token ? await verificarToken(token) : null
+  if (!sesion || sesion.rol !== "saul") return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+
+  const { id } = await params
+  await eliminarSolicitud(id)
+  return NextResponse.json({ ok: true })
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

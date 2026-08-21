@@ -363,6 +363,12 @@ export async function crearSolicitud(
   return rowToSolicitud(rows[0])
 }
 
+export async function eliminarSolicitud(id: string): Promise<void> {
+  await inicializar()
+  const db = sql()
+  await db`DELETE FROM solicitudes WHERE id = ${id}`
+}
+
 export async function listarSolicitudes(): Promise<Solicitud[]> {
   await inicializar()
   const db = sql()
