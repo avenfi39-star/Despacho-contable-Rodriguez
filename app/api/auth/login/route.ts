@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { crearToken, obtenerUsuarios } from "@/lib/auth"
+import { crearToken } from "@/lib/auth"
+import { obtenerUsuarioLogin } from "@/lib/db"
+import { verifyPassword } from "@/lib/password"
 
 export async function POST(req: NextRequest) {
   const { usuario, password } = await req.json()
-  const usuarios = obtenerUsuarios()
-  const found = usuarios.find((u) => u.usuario === usuario?.toLowerCase().trim() && u.password === password)
+  const login = (usuario ?? "").toLowerCase().trim()
+  const found = await obtenerUsuarioLogin(login)
 
-  if (!found) {
+  if (!found || !found.activo || !verifyPassword(password ?? "", found.passwordHash, found.passwordSalt)) {
     return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 })
   }
 
-  const token = await crearToken({ nombre: found.nombre, rol: found.rol })
+  const token = await crearToken({ usuario: found.usuario, nombre: found.nombre, rol: found.rol })
   const res = NextResponse.json({ rol: found.rol, nombre: found.nombre })
   res.cookies.set("dr-session", token, {
     httpOnly: true,

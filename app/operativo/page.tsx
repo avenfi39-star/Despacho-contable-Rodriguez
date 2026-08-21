@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Solicitud } from "@/lib/db"
+import CambiarPassword from "@/components/CambiarPassword"
 
 function fmtTiempo(iso: string) {
   const h = (Date.now() - new Date(iso).getTime()) / 36e5
@@ -117,7 +118,10 @@ export default function Operativo() {
             <div className="text-xs text-slate-400">Despacho Contable Rodríguez</div>
           </div>
         </div>
-        <button onClick={cerrarSesion} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">Cerrar sesión</button>
+        <div className="flex items-center gap-4">
+          <CambiarPassword color="green" />
+          <button onClick={cerrarSesion} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">Cerrar sesión</button>
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto p-6 space-y-4">

@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import type { ServicioDB, Solicitud, Colaborador } from "@/lib/db"
 import { NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
+import CambiarPassword from "@/components/CambiarPassword"
 
 function waLink(phone: string, msg: string) {
   return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
@@ -79,6 +80,11 @@ export default function Dashboard() {
   const [editWA, setEditWA]             = useState<Record<string, string>>({})
   const [guardandoColab, setGuardandoColab] = useState<string | null>(null)
   const [nuevoColab, setNuevoColab]     = useState("")
+  const [nuevoColabPw, setNuevoColabPw] = useState("")
+  const [accesoCreado, setAccesoCreado] = useState<string | null>(null)
+  const [usuarios, setUsuarios]         = useState<{ usuario: string; nombre: string; rol: string; activo: boolean }[]>([])
+  const [resetPw, setResetPw]           = useState<Record<string, string>>({})
+  const [reseteando, setReseteando]     = useState<string | null>(null)
 
   // Derivados del equipo: mapa de teléfonos por nombre y lista de nombres asignables.
   const teamPhones: Record<string, string> = Object.fromEntries(colaboradores.map((c) => [c.nombre, c.whatsapp]))
@@ -100,9 +106,15 @@ export default function Dashboard() {
     setColaboradores(await r.json())
   }, [])
 
+  const cargarUsuarios = useCallback(async () => {
+    const r = await fetch("/api/usuarios")
+    if (r.ok) setUsuarios(await r.json())
+  }, [])
+
   useEffect(() => { cargar(); const t = setInterval(cargar, 30000); return () => clearInterval(t) }, [cargar])
   useEffect(() => { cargarServicios() }, [cargarServicios])
   useEffect(() => { cargarColaboradores() }, [cargarColaboradores])
+  useEffect(() => { cargarUsuarios() }, [cargarUsuarios])
 
   // ── Acciones ──────────────────────────────────────────────────────────────
 
@@ -228,6 +240,7 @@ export default function Dashboard() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             Actualizar
           </button>
+          <CambiarPassword />
           <button onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/") }}
             className="text-xs text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -714,23 +727,66 @@ export default function Dashboard() {
             {/* Agregar colaborador */}
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
               <h2 className="text-sm font-semibold text-slate-700 mb-3">Agregar colaborador</h2>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                 <input value={nuevoColab} onChange={(e) => setNuevoColab(e.target.value)}
-                  placeholder="Nombre del colaborador (ej. Laura)"
-                  className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
+                  placeholder="Nombre (ej. Laura)"
+                  className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
+                <input value={nuevoColabPw} onChange={(e) => setNuevoColabPw(e.target.value)}
+                  placeholder="Contraseña temporal (opcional)"
+                  className="border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
                 <button disabled={!nuevoColab.trim() || guardandoColab === "nuevo"}
                   onClick={async () => {
                     setGuardandoColab("nuevo")
-                    await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: nuevoColab.trim() }) })
-                    setNuevoColab("")
-                    await cargarColaboradores()
+                    setAccesoCreado(null)
+                    const r = await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: nuevoColab.trim(), password: nuevoColabPw.trim() || undefined }) })
+                    const data = await r.json().catch(() => ({}))
+                    if (r.ok && data.usuarioCreado) setAccesoCreado(`${data.usuarioCreado}|${nuevoColabPw.trim()}`)
+                    setNuevoColab(""); setNuevoColabPw("")
+                    await cargarColaboradores(); await cargarUsuarios()
                     setGuardandoColab(null)
                   }}
                   className="bg-blue-600 text-white rounded-xl px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0">
                   {guardandoColab === "nuevo" ? "Guardando…" : "+ Agregar"}
                 </button>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Aparecerá en la lista de arriba para ponerle su número, y podrás asignarle solicitudes de inmediato. Para sacarlo del equipo usa &quot;Quitar&quot; (no se borra su historial).</p>
+              {accesoCreado && (
+                <div className="mt-3 text-xs bg-green-50 border border-green-100 text-green-800 rounded-xl px-3 py-2">
+                  Acceso creado — usuario: <b>{accesoCreado.split("|")[0]}</b>, contraseña temporal: <b>{accesoCreado.split("|")[1]}</b>. Pásaselos; podrá cambiarla al entrar.
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-2">Si le pones contraseña temporal, se le crea un <b>acceso</b> para entrar a su panel; si la dejas vacía, solo se agrega para WhatsApp y asignaciones. Para sacarlo del equipo usa &quot;Quitar&quot; (no se borra su historial).</p>
+            </div>
+
+            {/* Accesos del sistema (restablecer contraseñas) */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="text-sm font-semibold text-slate-700 mb-1">Accesos al sistema</h2>
+              <p className="text-xs text-slate-400 mb-4">Si a alguien se le olvida su contraseña, escríbele una nueva aquí y pásasela. Nadie puede ver la contraseña actual (están encriptadas).</p>
+              <div className="space-y-2">
+                {usuarios.map((u) => {
+                  const draft = resetPw[u.usuario] ?? ""
+                  return (
+                    <div key={u.usuario} className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2.5">
+                      <div className="w-32 flex-shrink-0 min-w-0">
+                        <div className="text-sm font-medium text-slate-800 truncate">{u.nombre}</div>
+                        <div className="text-[11px] text-slate-400">usuario: {u.usuario}{u.rol === "saul" ? " · admin" : ""}</div>
+                      </div>
+                      <input value={draft} onChange={(e) => setResetPw((p) => ({ ...p, [u.usuario]: e.target.value }))}
+                        placeholder="Nueva contraseña (mín. 6)"
+                        className="flex-1 min-w-0 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-colors" />
+                      <button disabled={draft.trim().length < 6 || reseteando === u.usuario}
+                        onClick={async () => {
+                          setReseteando(u.usuario)
+                          const r = await fetch(`/api/usuarios/${u.usuario}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nueva: draft.trim() }) })
+                          setReseteando(null)
+                          if (r.ok) { setResetPw((p) => { const n = { ...p }; delete n[u.usuario]; return n }); alert(`Contraseña restablecida para ${u.nombre}. Pásasela: ${draft.trim()}`) }
+                        }}
+                        className="text-xs bg-slate-700 text-white rounded-lg px-3 py-1.5 hover:bg-slate-800 disabled:opacity-30 transition-colors flex-shrink-0">
+                        {reseteando === u.usuario ? "…" : "Restablecer"}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}

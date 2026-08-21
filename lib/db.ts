@@ -189,6 +189,99 @@ export async function getTelefonoSaul(): Promise<string> {
   return rows[0] ? ((rows[0].whatsapp as string) ?? "") : ""
 }
 
+// ─── Usuarios (accesos al sistema) ────────────────────────────────────────────
+
+export interface UsuarioLogin {
+  usuario: string
+  nombre: string
+  rol: "saul" | "trabajador"
+  passwordHash: string
+  passwordSalt: string
+  activo: boolean
+}
+
+export interface UsuarioAdmin {
+  usuario: string
+  nombre: string
+  rol: "saul" | "trabajador"
+  activo: boolean
+}
+
+async function inicializarUsuarios() {
+  const db = sql()
+  await db`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      usuario TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      rol TEXT NOT NULL DEFAULT 'trabajador',
+      activo BOOLEAN NOT NULL DEFAULT TRUE
+    )
+  `
+  // Semilla: los accesos actuales, con la contraseña ya hasheada.
+  const { obtenerUsuarios } = await import("./auth")
+  const { hashPassword } = await import("./password")
+  const existing = await db`SELECT usuario FROM usuarios`
+  const ids = new Set(existing.map((r) => r.usuario as string))
+  for (const u of obtenerUsuarios()) {
+    if (!ids.has(u.usuario)) {
+      const { hash, salt } = hashPassword(u.password)
+      await db`INSERT INTO usuarios (usuario, nombre, password_hash, password_salt, rol, activo)
+               VALUES (${u.usuario}, ${u.nombre}, ${hash}, ${salt}, ${u.rol}, TRUE)`
+    }
+  }
+}
+
+export async function obtenerUsuarioLogin(usuario: string): Promise<UsuarioLogin | undefined> {
+  await inicializarUsuarios()
+  const db = sql()
+  const rows = await db`SELECT * FROM usuarios WHERE usuario=${usuario} LIMIT 1`
+  const r = rows[0]
+  if (!r) return undefined
+  return {
+    usuario: r.usuario as string,
+    nombre: r.nombre as string,
+    rol: r.rol as "saul" | "trabajador",
+    passwordHash: r.password_hash as string,
+    passwordSalt: r.password_salt as string,
+    activo: r.activo as boolean,
+  }
+}
+
+export async function listarUsuarios(): Promise<UsuarioAdmin[]> {
+  await inicializarUsuarios()
+  const db = sql()
+  const rows = await db`SELECT usuario, nombre, rol, activo FROM usuarios ORDER BY rol DESC, nombre`
+  return rows.map((r) => ({
+    usuario: r.usuario as string,
+    nombre: r.nombre as string,
+    rol: r.rol as "saul" | "trabajador",
+    activo: r.activo as boolean,
+  }))
+}
+
+export async function setPasswordUsuario(usuario: string, hash: string, salt: string): Promise<void> {
+  await inicializarUsuarios()
+  const db = sql()
+  await db`UPDATE usuarios SET password_hash=${hash}, password_salt=${salt} WHERE usuario=${usuario}`
+}
+
+export async function existeUsuario(usuario: string): Promise<boolean> {
+  await inicializarUsuarios()
+  const db = sql()
+  const rows = await db`SELECT 1 FROM usuarios WHERE usuario=${usuario} LIMIT 1`
+  return rows.length > 0
+}
+
+export async function crearUsuarioLogin(data: { usuario: string; nombre: string; rol?: "saul" | "trabajador"; hash: string; salt: string }): Promise<void> {
+  await inicializarUsuarios()
+  const db = sql()
+  await db`INSERT INTO usuarios (usuario, nombre, password_hash, password_salt, rol, activo)
+           VALUES (${data.usuario}, ${data.nombre}, ${data.hash}, ${data.salt}, ${data.rol ?? "trabajador"}, TRUE)
+           ON CONFLICT (usuario) DO NOTHING`
+}
+
 async function inicializar() {
   const db = sql()
   await db`

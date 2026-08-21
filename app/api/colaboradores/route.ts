@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { listarColaboradores, crearColaborador } from "@/lib/db"
+import { listarColaboradores, crearColaborador, existeUsuario, crearUsuarioLogin } from "@/lib/db"
 import { verificarToken } from "@/lib/auth"
 import { normalizarTelMx } from "@/lib/whatsapp"
+import { hashPassword, slugUsuario } from "@/lib/password"
 
 export async function GET(req: NextRequest) {
   const soloActivos = req.nextUrl.searchParams.get("activos") === "1"
@@ -17,9 +18,27 @@ export async function POST(req: NextRequest) {
   const nombre = (body.nombre ?? "").trim()
   if (!nombre) return NextResponse.json({ error: "Falta el nombre" }, { status: 400 })
 
+  // Contraseña temporal opcional: si viene, se le crea un acceso al sistema.
+  const password = body.password ? String(body.password) : ""
+  if (password && password.length < 6) {
+    return NextResponse.json({ error: "La contraseña temporal debe tener al menos 6 caracteres" }, { status: 400 })
+  }
+
   // Si viene número, se normaliza; si viene vacío, se deja sin número.
   const whatsapp = body.whatsapp ? normalizarTelMx(body.whatsapp) : ""
 
   const nuevo = await crearColaborador({ nombre, whatsapp })
-  return NextResponse.json(nuevo, { status: 201 })
+
+  // Auto-crear el login si se dio contraseña temporal.
+  let usuarioCreado: string | null = null
+  if (password) {
+    const base = slugUsuario(nombre) || "usuario"
+    let u = base, i = 1
+    while (await existeUsuario(u)) { u = `${base}${i}`; i++ }
+    const { hash, salt } = hashPassword(password)
+    await crearUsuarioLogin({ usuario: u, nombre, rol: "trabajador", hash, salt })
+    usuarioCreado = u
+  }
+
+  return NextResponse.json({ ...nuevo, usuarioCreado }, { status: 201 })
 }

@@ -5,6 +5,7 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET ?? "despacho-secr
 export type Rol = "saul" | "trabajador"
 
 export interface Sesion {
+  usuario: string
   nombre: string
   rol: Rol
 }
@@ -19,7 +20,7 @@ export async function crearToken(sesion: Sesion): Promise<string> {
 export async function verificarToken(token: string): Promise<Sesion | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET)
-    return { nombre: payload.nombre as string, rol: payload.rol as Rol }
+    return { usuario: (payload.usuario as string) ?? "", nombre: payload.nombre as string, rol: payload.rol as Rol }
   } catch {
     return null
   }
