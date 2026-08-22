@@ -134,7 +134,7 @@ export default function Dashboard() {
     if (!persona) return
     const phone = teamPhones[persona]
     const base = window.location.origin
-    const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
+    const panelUrl = `${base}/operativo`
     const msg =
       `📌 *Nueva tarea asignada — Despacho Rodríguez*\n\n` +
       `Hola *${persona}*, tienes una solicitud nueva:\n\n` +
@@ -143,7 +143,7 @@ export default function Dashboard() {
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n` +
       `⏱ Nivel: ${NIVEL_LABEL[s.nivel]}\n` +
       (s.notas ? `\n📝 Notas: ${s.notas}\n` : "") +
-      `\nCuando termines, marca la solicitud como lista aquí:\n👉 ${listoUrl}\n\n` +
+      `\nEntra a tu panel (con tu usuario y contraseña), sube tu documento y márcala como lista:\n👉 ${panelUrl}\n\n` +
       `Saúl revisará antes de notificar al cliente.`
     if (phone) abrirWA(phone, msg)
     setAccionando(s.id)
@@ -187,7 +187,7 @@ export default function Dashboard() {
     if (!nota) return
     const phone = teamPhones[s.asignadoA]
     const base = window.location.origin
-    const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
+    const panelUrl = `${base}/operativo`
     const msg =
       `🔄 *Solicitud con observaciones — Despacho Rodríguez*\n\n` +
       `Hola *${s.asignadoA}*, Saúl revisó la solicitud:\n\n` +
@@ -195,7 +195,7 @@ export default function Dashboard() {
       `👤 Cliente: ${s.clienteNombre}\n` +
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n\n` +
       `📝 *Observaciones:*\n${nota}\n\n` +
-      `Cuando hagas las correcciones, marca como listo aquí:\n👉 ${listoUrl}`
+      `Entra a tu panel para hacer las correcciones y marcarla como lista:\n👉 ${panelUrl}`
     if (phone) abrirWA(phone, msg)
     setAccionando(s.id)
     fetch(`/api/solicitudes/${s.id}`, {
@@ -208,14 +208,14 @@ export default function Dashboard() {
     const phone = teamPhones[s.asignadoA]
     if (!phone) return
     const base = window.location.origin
-    const listoUrl = `${base}/listo/${String(s.folio).padStart(4, "0")}`
+    const panelUrl = `${base}/operativo`
     abrirWA(phone,
       `⏰ *Recordatorio — Despacho Rodríguez*\n\n` +
       `Hola *${s.asignadoA}*, Saúl pregunta por la solicitud:\n\n` +
       `📋 *${s.servicioNombre}*\n` +
       `👤 Cliente: ${s.clienteNombre}\n` +
       `🔖 Folio: #${String(s.folio).padStart(4, "0")}\n\n` +
-      `Cuando termines, marca como listo aquí:\n👉 ${listoUrl}`
+      `Entra a tu panel para terminarla:\n👉 ${panelUrl}`
     )
   }
 

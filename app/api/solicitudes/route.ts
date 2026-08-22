@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { crearSolicitud, listarSolicitudes, getTelefonoSaul } from "@/lib/db"
 import { getServicio, NIVEL_TIEMPO } from "@/lib/catalog"
 import { waLink, msgClienteRecibido, normalizarTelMx } from "@/lib/whatsapp"
+import { verificarToken } from "@/lib/auth"
 
-export async function GET() {
+// Listado con datos de clientes: solo usuarios con sesión.
+export async function GET(req: NextRequest) {
+  const token = req.cookies.get("dr-session")?.value
+  const sesion = token ? await verificarToken(token) : null
+  if (!sesion) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
   return NextResponse.json(await listarSolicitudes())
 }
 

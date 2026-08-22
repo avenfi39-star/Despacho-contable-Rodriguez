@@ -19,6 +19,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
   const { accion, asignadoA, observaciones } = body
+
+  // Autenticación: hay que tener sesión. Asignar/aprobar/regresar son solo de Saúl;
+  // terminar lo puede hacer un colaborador con sesión.
+  const authToken = req.cookies.get("dr-session")?.value
+  const sesion = authToken ? await verificarToken(authToken) : null
+  if (!sesion) return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  if (["asignar", "aprobar", "regresar"].includes(accion) && sesion.rol !== "saul") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+  }
+
   const s = await obtenerSolicitud(id)
   if (!s) return NextResponse.json({ error: "No encontrada" }, { status: 404 })
 
