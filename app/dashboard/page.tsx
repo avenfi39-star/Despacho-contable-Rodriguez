@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import type { ServicioDB, Solicitud, Colaborador } from "@/lib/db"
 import { NIVEL_LABEL, ALERTA_SIN_ASIGNAR_HRS, ALERTA_RETRASO_DIAS } from "@/lib/catalog"
 import CambiarPassword from "@/components/CambiarPassword"
+import { subirArchivo } from "@/lib/subirArchivo"
 
 function waLink(phone: string, msg: string) {
   return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`
@@ -155,15 +156,17 @@ export default function Dashboard() {
 
   async function subirDocEntrega(id: string, file: File, slot: 1 | 2) {
     setSubiendoDoc(id)
-    const fd = new FormData()
-    fd.append("file", file)
-    const res = await fetch("/api/upload", { method: "POST", body: fd })
-    const data = await res.json()
-    if (res.ok) setDocEntrega((p) => {
-      const prev = p[id] ?? { url: "", nombre: "", url2: "", nombre2: "" }
-      return { ...p, [id]: slot === 1 ? { ...prev, url: data.url, nombre: data.nombre } : { ...prev, url2: data.url, nombre2: data.nombre } }
-    })
-    setSubiendoDoc(null)
+    try {
+      const data = await subirArchivo(file)
+      setDocEntrega((p) => {
+        const prev = p[id] ?? { url: "", nombre: "", url2: "", nombre2: "" }
+        return { ...p, [id]: slot === 1 ? { ...prev, url: data.url, nombre: data.nombre } : { ...prev, url2: data.url, nombre2: data.nombre } }
+      })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo subir el archivo")
+    } finally {
+      setSubiendoDoc(null)
+    }
   }
 
   function handleAprobar(s: Solicitud) {

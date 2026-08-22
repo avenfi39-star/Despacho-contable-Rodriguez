@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Solicitud } from "@/lib/db"
 import CambiarPassword from "@/components/CambiarPassword"
+import { subirArchivo } from "@/lib/subirArchivo"
 
 function fmtTiempo(iso: string) {
   const h = (Date.now() - new Date(iso).getTime()) / 36e5
@@ -67,16 +68,9 @@ export default function Operativo() {
     setSubiendoDoc(s.id)
     const docs = docsTrabajo[s.id] ?? { file1: null, file2: null }
 
-    async function subir(f: File) {
-      const fd = new FormData(); fd.append("file", f)
-      const r = await fetch("/api/upload", { method: "POST", body: fd })
-      if (!r.ok) throw new Error("Error al subir archivo")
-      return await r.json() as { url: string; nombre: string }
-    }
-
     const [u1, u2] = await Promise.all([
-      docs.file1 ? subir(docs.file1) : Promise.resolve(null),
-      docs.file2 ? subir(docs.file2) : Promise.resolve(null),
+      docs.file1 ? subirArchivo(docs.file1) : Promise.resolve(null),
+      docs.file2 ? subirArchivo(docs.file2) : Promise.resolve(null),
     ])
     setSubiendoDoc(null)
 

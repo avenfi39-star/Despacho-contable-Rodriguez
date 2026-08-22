@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { NIVEL_TIEMPO } from "@/lib/catalog"
 import type { ServicioDB } from "@/lib/db"
+import { subirArchivo } from "@/lib/subirArchivo"
 
 export default function FormularioCliente() {
   const [form, setForm] = useState({ clienteNombre: "", clienteWhatsapp: "", servicioId: "", notas: "" })
@@ -35,12 +36,6 @@ export default function FormularioCliente() {
     setEstado("enviando")
     setErrorMsg("")
     try {
-      async function subirArchivo(f: File) {
-        const fd = new FormData(); fd.append("file", f)
-        const r = await fetch("/api/upload", { method: "POST", body: fd })
-        if (!r.ok) { const err = await r.json(); throw new Error(err.error ?? "Error al subir archivo") }
-        return await r.json() as { url: string; nombre: string }
-      }
       const [u1, u2] = await Promise.all([
         archivos[0] ? subirArchivo(archivos[0]) : null,
         archivos[1] ? subirArchivo(archivos[1]) : null,
