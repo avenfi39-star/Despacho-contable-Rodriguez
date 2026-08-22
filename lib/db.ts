@@ -367,6 +367,11 @@ export async function eliminarSolicitud(id: string): Promise<void> {
   await inicializar()
   const db = sql()
   await db`DELETE FROM solicitudes WHERE id = ${id}`
+  // Si ya no queda ninguna solicitud, reiniciar el contador de folios a #0001.
+  const rows = await db`SELECT COUNT(*)::int AS n FROM solicitudes`
+  if (((rows[0]?.n as number) ?? 0) === 0) {
+    await db`SELECT setval(pg_get_serial_sequence('solicitudes','folio'), 1, false)`
+  }
 }
 
 export async function listarSolicitudes(): Promise<Solicitud[]> {
