@@ -32,7 +32,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const s = await obtenerSolicitud(id)
   if (!s) return NextResponse.json({ error: "No encontrada" }, { status: 404 })
 
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://despacho-contable-rodriguez.vercel.app"
+  // La URL del entorno actual (pruebas o producción), para que los links
+  // (entrega, dashboard) apunten a la misma página donde se hizo la acción.
+  const base = req.nextUrl.origin
 
   if (accion === "asignar") {
     if (!asignadoA) return NextResponse.json({ error: "Falta asignadoA" }, { status: 400 })
