@@ -28,7 +28,7 @@ export async function verificarToken(token: string): Promise<Sesion | null> {
 
 export function obtenerUsuarios() {
   return [
-    { usuario: "saul",       password: process.env.SAUL_PASSWORD      ?? "saul2024",      rol: "saul"      as Rol, nombre: "Saúl González" },
+    { usuario: "saul",       password: process.env.SAUL_PASSWORD      ?? "saul2024",      rol: "saul"      as Rol, nombre: "Saúl Rodríguez" },
     { usuario: "beatriz",    password: process.env.BEATRIZ_PASSWORD    ?? "beatriz2024",   rol: "trabajador" as Rol, nombre: "Beatriz" },
     { usuario: "anakaren",   password: process.env.ANAKAREN_PASSWORD   ?? "anakaren2024",  rol: "trabajador" as Rol, nombre: "Ana Karen" },
     { usuario: "santiago",   password: process.env.SANTIAGO_PASSWORD   ?? "santiago2024",  rol: "trabajador" as Rol, nombre: "Santiago" },

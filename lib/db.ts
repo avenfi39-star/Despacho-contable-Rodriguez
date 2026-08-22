@@ -121,11 +121,13 @@ async function inicializarColaboradores() {
     )
   `
   const { EQUIPO } = await import("./catalog")
+  // Corrección de nombre viejo ANTES de leer los existentes (evita duplicar al admin).
+  await db`UPDATE colaboradores SET nombre='Saúl Rodríguez' WHERE rol='saul' AND nombre='Saúl'`
   const existing = await db`SELECT nombre FROM colaboradores`
   const existingNombres = new Set(existing.map((r) => r.nombre as string))
   // Semilla: cada integrante del EQUIPO + Saúl. Los números empiezan vacíos.
   const semilla: { nombre: string; rol: ColaboradorRol }[] = [
-    { nombre: "Saúl", rol: "saul" },
+    { nombre: "Saúl Rodríguez", rol: "saul" },
     ...EQUIPO.map((e) => ({ nombre: e.nombre, rol: "colaborador" as ColaboradorRol })),
   ]
   for (const c of semilla) {
@@ -231,6 +233,8 @@ async function inicializarUsuarios() {
                VALUES (${u.usuario}, ${u.nombre}, ${hash}, ${salt}, ${u.rol}, TRUE)`
     }
   }
+  // Corrección de nombre viejo en registros ya sembrados.
+  await db`UPDATE usuarios SET nombre='Saúl Rodríguez' WHERE usuario='saul' AND nombre='Saúl González'`
 }
 
 export async function obtenerUsuarioLogin(usuario: string): Promise<UsuarioLogin | undefined> {
