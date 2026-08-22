@@ -398,30 +398,17 @@ export async function actualizarSolicitud(
 ): Promise<Solicitud | null> {
   await inicializar()
   const db = sql()
-  let rows
 
-  const asignadoA      = patch.asignadoA
-  const estado         = patch.estado
-  const observaciones  = patch.observaciones
-  const documentoUrl   = patch.documentoUrl
-  const documentoNombre = patch.documentoNombre
-  const entregaToken   = patch.entregaToken
+  // Se guarda CADA campo que venga en el patch (sin combinaciones fijas frágiles).
+  if (patch.asignadoA !== undefined)       await db`UPDATE solicitudes SET asignado_a=${patch.asignadoA} WHERE id=${id}`
+  if (patch.estado !== undefined)          await db`UPDATE solicitudes SET estado=${patch.estado} WHERE id=${id}`
+  if (patch.observaciones !== undefined)   await db`UPDATE solicitudes SET observaciones=${patch.observaciones} WHERE id=${id}`
+  if (patch.documentoUrl !== undefined)    await db`UPDATE solicitudes SET documento_url=${patch.documentoUrl} WHERE id=${id}`
+  if (patch.documentoNombre !== undefined) await db`UPDATE solicitudes SET documento_nombre=${patch.documentoNombre} WHERE id=${id}`
+  if (patch.documento2Url !== undefined)   await db`UPDATE solicitudes SET documento2_url=${patch.documento2Url} WHERE id=${id}`
+  if (patch.documento2Nombre !== undefined) await db`UPDATE solicitudes SET documento2_nombre=${patch.documento2Nombre} WHERE id=${id}`
+  if (patch.entregaToken !== undefined)    await db`UPDATE solicitudes SET entrega_token=${patch.entregaToken} WHERE id=${id}`
+  await db`UPDATE solicitudes SET actualizado_en=NOW() WHERE id=${id}`
 
-  if (asignadoA !== undefined && estado !== undefined && observaciones !== undefined) {
-    rows = await db`UPDATE solicitudes SET asignado_a=${asignadoA}, estado=${estado}, observaciones=${observaciones}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
-  } else if (asignadoA !== undefined && estado !== undefined) {
-    rows = await db`UPDATE solicitudes SET asignado_a=${asignadoA}, estado=${estado}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
-  } else if (estado !== undefined && observaciones !== undefined) {
-    rows = await db`UPDATE solicitudes SET estado=${estado}, observaciones=${observaciones}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
-  } else if (estado !== undefined && documentoUrl !== undefined && documentoNombre !== undefined && entregaToken !== undefined) {
-    const d2u = patch.documento2Url ?? ""
-    const d2n = patch.documento2Nombre ?? ""
-    rows = await db`UPDATE solicitudes SET estado=${estado}, documento_url=${documentoUrl}, documento_nombre=${documentoNombre}, documento2_url=${d2u}, documento2_nombre=${d2n}, entrega_token=${entregaToken}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
-  } else if (estado !== undefined) {
-    rows = await db`UPDATE solicitudes SET estado=${estado}, actualizado_en=NOW() WHERE id=${id} RETURNING *`
-  } else {
-    return (await obtenerSolicitud(id)) ?? null
-  }
-
-  return rows[0] ? rowToSolicitud(rows[0]) : null
+  return (await obtenerSolicitud(id)) ?? null
 }
