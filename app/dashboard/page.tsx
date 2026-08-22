@@ -324,7 +324,16 @@ export default function Dashboard() {
                     <ArchivoLink url={s.archivoUrl} nombre={s.archivoNombre} />
                     <ArchivoLink url={s.archivo2Url} nombre={s.archivo2Nombre} />
 
-                    {/* Documentos de entrega — hasta 2 */}
+                    {/* Documento que subió el colaborador al terminar */}
+                    {s.documentoUrl && (
+                      <div className="mt-2">
+                        <div className="text-[11px] font-medium text-slate-500 mb-1">Trabajo entregado por {s.asignadoA}:</div>
+                        <ArchivoLink url={s.documentoUrl} nombre={s.documentoNombre} />
+                        <ArchivoLink url={s.documento2Url} nombre={s.documento2Nombre} />
+                      </div>
+                    )}
+
+                    {/* Documentos de entrega adicionales de Saúl (opcional, reemplazan al del colaborador) */}
                     <div className="mt-2 space-y-1.5">
                       {([1, 2] as const).map((slot) => {
                         const doc = docEntrega[s.id]

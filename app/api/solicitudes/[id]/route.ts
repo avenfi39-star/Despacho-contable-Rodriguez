@@ -76,16 +76,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (accion === "aprobar") {
     const { documentoUrl, documentoNombre, documento2Url, documento2Nombre } = body
     const entregaToken = crypto.randomUUID().replace(/-/g, "")
+    // El documento que descarga el cliente: el que suba Saúl al aprobar, o si no
+    // sube nada, el que ya subió el colaborador al terminar (guardado en la solicitud).
+    const docUrl     = documentoUrl    || s.documentoUrl
+    const docNombre  = documentoNombre || s.documentoNombre || "documento"
+    const doc2Url    = documento2Url    || s.documento2Url
+    const doc2Nombre = documento2Nombre || s.documento2Nombre || ""
     const patch: Partial<import("@/lib/db").Solicitud> = { estado: "listo" }
-    if (documentoUrl && documentoNombre) {
-      patch.documentoUrl = documentoUrl
-      patch.documentoNombre = documentoNombre
-      patch.documento2Url = documento2Url ?? ""
-      patch.documento2Nombre = documento2Nombre ?? ""
+    if (docUrl) {
+      patch.documentoUrl = docUrl
+      patch.documentoNombre = docNombre
+      patch.documento2Url = doc2Url ?? ""
+      patch.documento2Nombre = doc2Nombre ?? ""
       patch.entregaToken = entregaToken
     }
     const updated = await actualizarSolicitud(id, patch)
-    const entregaUrl = documentoUrl ? `${base}/entrega/${entregaToken}` : null
+    const entregaUrl = docUrl ? `${base}/entrega/${entregaToken}` : null
     const msg =
       `✅ *Tu trámite está listo — Despacho Rodríguez*\n\n` +
       `Hola *${s.clienteNombre}*, tu solicitud ha sido completada y revisada:\n\n` +
